@@ -1,9 +1,4 @@
 #
-# 请大家记住拉取的是我的 281677160/build-actions 仓库，拉取的是其他仓库有问题，别问我，我也不清楚什么问题
-#
-# 因为SSH连接配置固件直接编译，会给github停止编译的,所以要另外触发启动编译程序
-#
-# 新注册的帐号，SSH连接服务器的时间最好不要太长，10分钟左右就退出，没设置完就再来一次或者多次应该比较好
 #
 # 运行此程序不是直接编译，是修改配置文件和触发编译，正确运行完毕后，在Actions刷新网页看看你的编译程序运行了没有
 #
@@ -13,18 +8,17 @@
 #
 #
 
-name: Lede
+name: LEDE
 on:
   workflow_dispatch:
     inputs:
       REPO_BRANCH:
-        description: '大雕源码'
+        description: 'LEDE源码'
         required: true
         default: 'master'
         type: choice
         options:
           - 'master'
-          - 'gl-ax1800'
       CONFIG_FILE:
         description: '请选择配置文件'
         required: true
@@ -32,26 +26,18 @@ on:
         type: choice
         options:
           - 'aarch64'
-          - 'asus_rt-acrh17'
-          - 'd-team_newifi-d2'
-          - 'p2w_r619ac-128m'
-          - 'phicomm_k2p'
           - 'x86_32'
           - 'x86_64'
-          - 'xiaomi_mi-router-4a-gigabit'
-          - 'xiaomi_redmi-router-ac2100'
-          - 'xiaomi_redmi-router-ax6s'
-          - 'xiaoyu_xy-c5'
       CPU_SELECTION:
         description: 'CPU优选,增加编译速度'
         required: true
-        default: '弃用E5系列'
+        default: 'E5系列'
         type: choice
         options:
-          - '弃用E5系列'
-          - '选择8370C'
-          - '选择8272CL'
-          - '选择8171M'
+          - 'E5系列'
+          - '8370C'
+          - '8272CL'
+          - '8171M'
       INFORMATION_NOTICE:
         description: 'Telegram或pushplus信息通知'
         required: true
@@ -82,9 +68,9 @@ on:
         default: 'true'
         type: boolean
       UPDATE_FIRMWARE_ONLINE:
-        description: '增加在线更新功能/N1和晶晨系列固件打包'
+        description: '增加在线更新功能'
         required: false
-        default: 'true'
+        default: 'false'
         type: boolean
       COLLECTED_PACKAGES:
         description: '是否加入作者收集的插件包'
@@ -140,7 +126,7 @@ jobs:
     - name: 读取脚本设置
       run: |
         cd ${GITHUB_WORKSPACE}
-        git clone https://github.com/281677160/common build/common
+        git clone https://github.com/SaneSlark/common build/common
         mv -f build/common/*.sh build/${{ env.FOLDER_NAME }}/
         chmod -R +x build
         export SOURCE_CODE="$(source "build/${{ matrix.target }}/settings.ini" && echo ${SOURCE_CODE})"
@@ -167,8 +153,8 @@ jobs:
         sudo timedatectl set-timezone "$TZ"
         sudo mkdir -p /${{ env.DIY_WORK }}
         sudo chown $USER:$GROUPS /${{ env.DIY_WORK }}
-        git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-        git config --global user.name "github-actions[bot]"
+        git config --global user.email "95993691+SaneSlark@users.noreply.github.com"
+        git config --global user.name "SaneSlark"
     
     - name: 下载"${{ matrix.target }}"源码
       working-directory: /${{ env.DIY_WORK }}
