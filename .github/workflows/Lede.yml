@@ -126,7 +126,7 @@ jobs:
     - name: 读取脚本设置
       run: |
         cd ${GITHUB_WORKSPACE}
-        git clone https://github.com/281677160/common build/common
+        git clone https://github.com/SaneSlark/common build/common
         mv -f build/common/*.sh build/${{ env.FOLDER_NAME }}/
         chmod -R +x build
         export SOURCE_CODE="$(source "build/${{ matrix.target }}/settings.ini" && echo ${SOURCE_CODE})"
@@ -153,8 +153,8 @@ jobs:
         sudo timedatectl set-timezone "$TZ"
         sudo mkdir -p /${{ env.DIY_WORK }}
         sudo chown $USER:$GROUPS /${{ env.DIY_WORK }}
-        git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-        git config --global user.name "github-actions[bot]"
+        git config --global user.email "95993691+SaneSlark@users.noreply.github.com"
+        git config --global user.name "SaneSlark"
     
     - name: 下载"${{ matrix.target }}"源码
       working-directory: /${{ env.DIY_WORK }}
