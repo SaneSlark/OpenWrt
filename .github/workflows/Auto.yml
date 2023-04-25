@@ -78,7 +78,7 @@ jobs:
     - name: Import external feeds - theme edge
     #  working-directory: ./openwrt
     #  run: |
-    #    git clone -b 18.06 https://github.com/SaneSlark/OpenWrt-Package.git package/luci-theme-edge
+    #    git clone -b 18.06 https://github.com/letmekillthemall/luci-theme-edge.git package/luci-theme-edge
     
 
     - name: Configuration Customization - Build_x86_64
