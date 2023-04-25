@@ -56,7 +56,7 @@ jobs:
         git clone --depth 1 $REPO_URL -b $REPO_BRANCH openwrt
         cd openwrt
         echo "src-git ssrp https://github.com/fw876/helloworld.git" >> ./feeds.conf.default
-        echo "src-git https://github.com/letmekillthemall/luci-theme-edge.git" >> ./feeds.conf.default
+        echo "src-git edge https://github.com/letmekillthemall/luci-theme-edge.git" >> ./feeds.conf.default
         
     - name: Update & Install feeds
       working-directory: ./openwrt
