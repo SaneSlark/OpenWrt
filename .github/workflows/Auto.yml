@@ -56,6 +56,7 @@ jobs:
         git clone --depth 1 $REPO_URL -b $REPO_BRANCH openwrt
         cd openwrt
         echo "src-git ssrp https://github.com/fw876/helloworld.git" >> ./feeds.conf.default
+        echo "src-git ssrp https://github.com/letmekillthemall/luci-theme-edge.git" >> ./feeds.conf.default
         
     - name: Update & Install feeds
       working-directory: ./openwrt
@@ -75,10 +76,10 @@ jobs:
     #  run: |
     #   git clone -b 18.06 https://github.com/jerrykuku/luci-theme-argon.git package/luci-theme-argon-jerrykuku
     
-    - name: Import external feeds - theme edge
-      working-directory: ./openwrt
-      run: |
-      git clone https://github.com/letmekillthemall/luci-theme-edge.git package/luci-theme-edge
+   # - name: Import external feeds - theme edge
+    #  working-directory: ./openwrt
+     # run: |
+      # git clone https://github.com/letmekillthemall/luci-theme-edge.git package/luci-theme-edge
     
     - name: Configuration Customization - Build_x86_64
       env:
