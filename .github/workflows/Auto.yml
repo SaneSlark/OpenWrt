@@ -62,6 +62,9 @@ jobs:
     - name: Update & Install Feeds
       working-directory: ./openwrt
       run: |
+      cd package/lean
+      rm -rf luci-theme-argon
+      git clone https://github.com/letmekillthemall/luci-theme-edge.git package/lean/luci-theme-edge
         ./scripts/feeds update -a
         ./scripts/feeds install -a
         ./scripts/feeds install -a
@@ -77,10 +80,10 @@ jobs:
     #  run: |
     #   git clone -b 18.06 https://github.com/jerrykuku/luci-theme-argon.git package/luci-theme-argon-jerrykuku
     
-   - name: Import external feeds - theme edge
-     working-directory: ./openwrt
-      run: |
-      git clone https://github.com/letmekillthemall/luci-theme-edge.git package/luci-theme-edge
+   #- name: Import external feeds - theme edge
+    # working-directory: ./openwrt
+     # run: |
+    #  git clone https://github.com/letmekillthemall/luci-theme-edge.git package/luci-theme-edge
     
     - name: Configuration Customization - Build_x86_64
       env:
