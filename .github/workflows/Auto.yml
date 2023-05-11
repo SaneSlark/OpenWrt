@@ -58,8 +58,6 @@ jobs:
         git clone --depth 1 $REPO_URL -b $REPO_BRANCH openwrt
         cd openwrt
         echo "src-git ssrp https://github.com/fw876/helloworld.git" >> ./feeds.conf.default
-        cd package/lean
-        rm -rf luci-theme-argon
         git clone https://github.com/letmekillthemall/luci-theme-edge.git package/luci-theme-edge
         
     - name: Update & Install Feeds
