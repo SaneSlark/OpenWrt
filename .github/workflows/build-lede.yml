@@ -1,0 +1,252 @@
+name: OpenWrt lede Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      repo_url:
+        description: 源码仓库地址
+        required: true
+        default: https://github.com/coolsnowwolf/lede
+      repo_branch:
+        description: 源码分支
+        required: true
+        default: master
+      config_file:
+        description: 当前仓库中的配置文件路径
+        required: true
+        default: config/lede_x86_64.config
+      script_file:
+        description: 当前仓库中的自定义脚本路径
+        required: true
+        default: scripts/diy-lede.sh
+      artifact_name:
+        description: 编译文件名称
+        required: true
+        default: OpenWrt_x86_64_Lede
+      compile_threads:
+        description: 编译线程数，0 表示自动使用全部 CPU
+        required: true
+        default: "1"
+      upload_release:
+        description: 是否创建 GitHub Release
+        required: true
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+concurrency:
+  group: openwrt-lede-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+
+    env:
+      REPO_URL: ${{ github.event.inputs.repo_url || 'https://github.com/coolsnowwolf/lede' }}
+      REPO_BRANCH: ${{ github.event.inputs.repo_branch || 'master' }}
+      CONFIG_FILE: ${{ github.event.inputs.config_file || 'config/lede_x86_64.config' }}
+      SCRIPT_FILE: ${{ github.event.inputs.script_file || 'scripts/diy-lede.sh' }}
+      ARTIFACT_NAME: ${{ github.event.inputs.artifact_name || 'OpenWrt_x86_64_Lede' }}
+      UPLOAD_RELEASE: ${{ github.event.inputs.upload_release || 'false' }}
+      COMPILE_THREADS: ${{ github.event.inputs.compile_threads || '1' }}
+      TZ: Asia/Shanghai
+
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v5
+
+      - name: 显示编译参数
+        run: |
+          echo "REPO_URL=$REPO_URL"
+          echo "REPO_BRANCH=$REPO_BRANCH"
+          echo "CONFIG_FILE=$CONFIG_FILE"
+          echo "SCRIPT_FILE=$SCRIPT_FILE"
+          echo "ARTIFACT_NAME=$ARTIFACT_NAME"
+          echo "UPLOAD_RELEASE=$UPLOAD_RELEASE"
+          echo "COMPILE_THREADS=$COMPILE_THREADS"
+
+      - name: 清理 Runner 磁盘空间
+        run: |
+          echo "Before cleanup:"
+          df -h
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL || true
+          sudo docker image prune -af || true
+          sudo -E apt-get clean
+          echo "After cleanup:"
+          df -h
+
+      - name: 初始化编译环境
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo -E apt-get update
+          sudo -E apt-get install -y \
+            ack antlr3 aria2 asciidoc autoconf automake autopoint binutils bison build-essential \
+            bzip2 ccache clang cmake cpio curl device-tree-compiler fastjar flex gawk gettext gcc-multilib \
+            g++-multilib git gperf haveged help2man intltool libc6-dev-i386 libelf-dev \
+            libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses5-dev libyaml-dev libz-dev \
+            libncursesw5-dev libreadline-dev libssl-dev libtool lrzsz msmtp nano ninja-build p7zip \
+            p7zip-full patch pkgconf python3 python3-pip python3-docutils python3-ply python3-pyelftools \
+            libpython3-dev llvm lld qemu-utils re2c rsync scons squashfs-tools subversion swig texinfo \
+            uglifyjs upx-ucl unzip vim wget xmlto xxd xz-utils zlib1g-dev zstd
+          sudo -E apt-get autoremove --purge -y
+          sudo -E apt-get clean
+
+      - name: 克隆源码
+        run: |
+          git clone --depth 1 -b "$REPO_BRANCH" "$REPO_URL" openwrt
+
+      - name: 检查本地文件
+        run: |
+          test -f "$CONFIG_FILE"
+          test -f "$SCRIPT_FILE"
+
+      - name: 恢复缓存
+        uses: actions/cache@v5
+        with:
+          path: |
+            openwrt/dl
+            openwrt/.ccache
+          key: ${{ runner.os }}-${{ env.REPO_BRANCH }}-${{ hashFiles('config/*.config', 'scripts/*.sh') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ env.REPO_BRANCH }}-
+            ${{ runner.os }}-
+
+      - name: 执行预处理脚本
+        env:
+          STAGE: pre
+        run: |
+          chmod +x "$SCRIPT_FILE"
+          "$SCRIPT_FILE"
+
+      - name: 更新并安装 feeds
+        working-directory: ./openwrt
+        run: |
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: 加载自定义配置
+        run: |
+          cp "$CONFIG_FILE" openwrt/.config
+          chmod +x "$SCRIPT_FILE"
+          STAGE=post "$SCRIPT_FILE"
+          cd openwrt
+          make defconfig
+          cd "$GITHUB_WORKSPACE"
+          STAGE=post "$SCRIPT_FILE"
+          cd openwrt
+          make defconfig
+          echo "Selected proxy packages after defconfig:"
+          grep -E '^(# )?(CONFIG_PACKAGE_(luci-app-ssr-plus|luci-i18n-ssr-plus|luci-app-passwall2|xray-core|v2ray-core|mosdns|mihomo|shadowsocks-libev|shadowsocksr-libev|shadowsocks-rust|hysteria|tuic-client|naiveproxy|kcptun|trojan|sing-box)(=y| is not set)|CONFIG_PACKAGE_luci-app-passwall2_Basic_Core_|CONFIG_PACKAGE_luci-app-(ssr-plus|passwall2)_INCLUDE_)' .config || true
+          echo "Proxy package source metadata:"
+          for pkg in shadowsocks-libev shadowsocksr-libev xray-core mosdns mihomo hysteria kcptun trojan luci-app-ssr-plus luci-app-passwall2; do
+            find package feeds -path "*/$pkg/Makefile" -print 2>/dev/null | sort | while read -r makefile; do
+              echo "===== $makefile ====="
+              grep -E '^(PKG_NAME|PKG_VERSION|PKG_RELEASE|PKG_SOURCE|PKG_SOURCE_URL|PKG_SOURCE_PROTO|PKG_SOURCE_DATE|PKG_SOURCE_VERSION|PKG_HASH|PKG_MIRROR_HASH|GO_PKG|GO_PKG_BUILD_PKG):=' "$makefile" || true
+            done
+          done
+
+      - name: 下载软件包
+        working-directory: ./openwrt
+        run: |
+          rm -rf dl/go-mod-cache tmp/go-build ~/.cache/go-build ~/go/pkg/mod
+          make download -j"$(nproc)" V=s || make download -j1 V=s
+          find dl -path 'dl/go-mod-cache' -prune -o -type f -size -1024c -exec ls -l {} \;
+          find dl -path 'dl/go-mod-cache' -prune -o -type f -size -1024c -exec rm -f {} \;
+          make download -j1 V=s
+
+      - name: 编译固件
+        working-directory: ./openwrt
+        run: |
+          threads="$COMPILE_THREADS"
+          if [ -z "$threads" ] || [ "$threads" = "0" ]; then
+            threads="$(nproc)"
+          fi
+          echo "$threads thread compile"
+          df -h
+          set -o pipefail
+          if make -j"$threads" V=s 2>&1 | tee "$GITHUB_WORKSPACE/build.log"; then
+            exit 0
+          fi
+          if [ "$threads" = "1" ]; then
+            exit 1
+          fi
+          make -j1 V=s 2>&1 | tee -a "$GITHUB_WORKSPACE/build.log"
+
+      - name: 收集失败诊断
+        if: failure()
+        run: |
+          mkdir -p failure-logs
+          df -h > failure-logs/df-h.txt
+          du -h -d 2 openwrt 2>/dev/null | sort -h | tail -200 > failure-logs/du-openwrt.txt || true
+          cp openwrt/.config failure-logs/.config || true
+          cp openwrt/tmp/.config-package.in failure-logs/config-package.in || true
+          cp build.log failure-logs/build.log || true
+          {
+            echo "### OpenWrt build failure summary"
+            echo
+            echo '```text'
+            if [ -f build.log ]; then
+              echo "===== build.log errors ====="
+              grep -Eai 'error:|failed|Download from|Hash check failed|Cannot find package|No rule to make target|undefined reference|no space left|make\[[0-9]+\]: \*\*\*' build.log | tail -160 || true
+              echo "===== build.log tail ====="
+              tail -240 build.log || true
+            fi
+            find openwrt/logs -type f -print 2>/dev/null | sort | while read -r file; do
+              echo "===== $file ====="
+              grep -Eai 'error:|failed|Download from|Hash check failed|Cannot find package|No rule to make target|undefined reference|no space left|make\[[0-9]+\]: \*\*\*' "$file" | tail -120 || true
+            done
+            echo '```'
+          } > failure-logs/summary.md
+          cat failure-logs/summary.md >> "$GITHUB_STEP_SUMMARY"
+          if [ -d openwrt/logs ]; then
+            find openwrt/logs -maxdepth 6 -type f -print -exec cp --parents {} failure-logs/ \; || true
+          fi
+
+      - name: 上传失败诊断
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ env.ARTIFACT_NAME }}_failure_logs
+          path: failure-logs/**
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: 收集固件
+        id: collect
+        run: |
+          firmware_dir="$GITHUB_WORKSPACE/firmware"
+          mkdir -p "$firmware_dir"
+          find openwrt/bin/targets -type f \( \
+            -name '*.img' -o \
+            -name '*.img.gz' -o \
+            -name '*.iso' -o \
+            -name '*.qcow2' -o \
+            -name '*.vdi' -o \
+            -name '*.vmdk' \
+          \) -exec cp -v {} "$firmware_dir/" \;
+          find "$firmware_dir" -type f | sort
+          test "$(find "$firmware_dir" -type f | wc -l)" -gt 0
+          echo "firmware_dir=$firmware_dir" >> "$GITHUB_OUTPUT"
+          echo "release_tag=$(date +%Y%m%d-%H%M)" >> "$GITHUB_OUTPUT"
+
+      - name: 上传固件
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ steps.collect.outputs.firmware_dir }}/*
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: 创建 GitHub Release
+        if: env.UPLOAD_RELEASE == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.collect.outputs.release_tag }}
+          name: ${{ env.ARTIFACT_NAME }} ${{ steps.collect.outputs.release_tag }}
+          files: ${{ steps.collect.outputs.firmware_dir }}/*
