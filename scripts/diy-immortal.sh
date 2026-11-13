@@ -25,8 +25,6 @@ ENABLE_PASSWALL2="true"
 ENABLE_HOMEPROXY="true"
 ENABLE_SSR_PLUS="true"
 ENABLE_SSR_PLUS_LEGACY_EXTRAS="true"
-# Nikki's Mihomo variants conflict with the retained 24.10 feeds.
-ENABLE_NIKKI="false"
 ENABLE_HYSTERIA="true"
 ENABLE_NAIVEPROXY="true"
 ENABLE_FILETRANSFER="true"
@@ -52,14 +50,12 @@ configure_feeds() {
     -e '\#src-git passwall_packages https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git;main#d' \
     -e '\#src-git passwall2 https://github.com/Openwrt-Passwall/openwrt-passwall2.git;main#d' \
     -e '\#src-git homeproxy https://github.com/immortalwrt/homeproxy.git;master#d' \
-    -e '\#src-git nikki https://github.com/nikkinikki-org/OpenWrt-nikki.git;main#d' \
     "$file"
 
   app_feed "$ENABLE_PASSWALL2" "src-git passwall_packages https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git;main" "$file"
   app_feed "$ENABLE_PASSWALL2" "src-git passwall2 https://github.com/Openwrt-Passwall/openwrt-passwall2.git;main" "$file"
   app_feed "$ENABLE_SSR_PLUS" "src-git helloworld https://github.com/fw876/helloworld.git" "$file"
   app_feed "$ENABLE_HOMEPROXY" "src-git homeproxy https://github.com/immortalwrt/homeproxy.git;master" "$file"
-  app_feed "$ENABLE_NIKKI" "src-git nikki https://github.com/nikkinikki-org/OpenWrt-nikki.git;main" "$file"
 }
 
 clone_update() {
@@ -143,7 +139,6 @@ EOF
   fi
   [ "$ENABLE_PASSWALL2" = "true" ] || sed -i '/CONFIG_PACKAGE_luci-app-passwall2/d;/CONFIG_PACKAGE_luci-i18n-passwall2-zh-cn/d' .config || true
   [ "$ENABLE_HOMEPROXY" = "true" ] || sed -i '/CONFIG_PACKAGE_luci-app-homeproxy/d;/CONFIG_PACKAGE_luci-i18n-homeproxy-zh-cn/d' .config || true
-  [ "$ENABLE_NIKKI" = "true" ] || sed -i '/CONFIG_PACKAGE_luci-app-nikki/d;/CONFIG_PACKAGE_nikki/d;/CONFIG_PACKAGE_luci-i18n-nikki-zh-cn/d' .config || true
   [ "$ENABLE_HYSTERIA" = "true" ] || sed -i '/CONFIG_PACKAGE_hysteria=y/d;/CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_Hysteria=y/d' .config || true
   [ "$ENABLE_NAIVEPROXY" = "true" ] || sed -i '/CONFIG_PACKAGE_naiveproxy=y/d;/CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_NaiveProxy=y/d' .config || true
   [ "$ENABLE_FILETRANSFER" = "true" ] || sed -i '/CONFIG_PACKAGE_luci-app-filetransfer=y/d;/CONFIG_PACKAGE_luci-i18n-filetransfer-zh-cn=y/d' .config || true
