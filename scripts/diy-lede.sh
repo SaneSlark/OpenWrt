@@ -10,6 +10,7 @@ set -e
 WORKDIR="${GITHUB_WORKSPACE:-$PWD}"
 OPENWRT_DIR="${WORKDIR}/openwrt"
 STAGE="${STAGE:-pre}"
+source "${WORKDIR}/scripts/router-common.sh"
 
 # ====== 自定义区域 ======
 DEFAULT_THEME="edge"
@@ -22,7 +23,7 @@ TIMEZONE="CST-8"
 ZONENAME="Asia/Shanghai"
 
 ENABLE_THEME_EDGE="true"
-# LEDE 方案仅保留较稳定的两类代理插件：
+# LEDE 方案包含 OpenClash 以及已有的代理插件：
 # - SSR-Plus
 # - Passwall2
 # 其他较新的代理应用不在此方案默认启用。
@@ -51,7 +52,7 @@ app_feed() {
 configure_feeds() {
   local file="$1"
 
-  # Pin LuCI to 24.10 so LuCI apps and custom packages use the same stable base.
+  # Retain the original 24.10 LuCI compatibility baseline for Edge.
   sed -i -E "s#^src-git luci .*\$#src-git luci https://github.com/coolsnowwolf/luci.git;${LUCI_FEED_BRANCH}#" "$file"
   grep -Eq '^src-git luci ' "$file" || echo "src-git luci https://github.com/coolsnowwolf/luci.git;${LUCI_FEED_BRANCH}" >> "$file"
 
@@ -90,55 +91,6 @@ patch_packages() {
     fi
   done
 
-  for dir in package/feeds/*/hysteria feeds/*/hysteria; do
-    [ -d "$dir" ] || continue
-    makefile="$dir/Makefile"
-    cat > "$makefile" <<'EOF'
-include $(TOPDIR)/rules.mk
-
-PKG_NAME:=hysteria
-PKG_VERSION:=2.8.2
-PKG_RELEASE:=1
-
-PKG_SOURCE:=hysteria-linux-amd64
-PKG_SOURCE_URL:=https://github.com/apernet/hysteria/releases/download/app/v$(PKG_VERSION)/
-PKG_HASH:=b11bf0fb5f84a3f5c6baff3696e899539e68af4cee868c9203cfb896784ad3b0
-
-PKG_LICENSE:=MIT
-PKG_MAINTAINER:=Aperture Internet Laboratory
-
-include $(INCLUDE_DIR)/package.mk
-
-define Package/hysteria
-  SECTION:=net
-  CATEGORY:=Network
-  TITLE:=A feature-packed network utility optimized for networks of poor quality
-  URL:=https://github.com/apernet/hysteria
-  DEPENDS:=@TARGET_x86_64 +ca-bundle
-endef
-
-define Package/hysteria/description
-  Hysteria is a feature-packed network utility optimized for networks of poor quality.
-endef
-
-define Build/Prepare
-	mkdir -p $(PKG_BUILD_DIR)
-	$(CP) $(DL_DIR)/$(PKG_SOURCE) $(PKG_BUILD_DIR)/hysteria
-endef
-
-define Build/Compile
-endef
-
-define Package/hysteria/install
-	$(INSTALL_DIR) $(1)/usr/bin
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/hysteria $(1)/usr/bin/hysteria
-endef
-
-$(eval $(call BuildPackage,hysteria))
-EOF
-    echo "Patched $makefile to package official prebuilt hysteria-linux-amd64."
-  done
-
   src="feeds/helloworld/shadowsocksr-libev"
   dst="package/custom/shadowsocksr-libev"
   if [ -d "$src" ]; then
@@ -148,63 +100,6 @@ EOF
     echo "Using helloworld bundled shadowsocksr-libev source."
   fi
 
-  for makefile in package/feeds/*/xray-core/Makefile feeds/*/xray-core/Makefile; do
-    [ -f "$makefile" ] || continue
-    cat > "$makefile" <<'EOF'
-include $(TOPDIR)/rules.mk
-
-PKG_NAME:=xray-core
-PKG_VERSION:=25.2.21
-PKG_RELEASE:=1
-
-PKG_SOURCE:=xray-core-$(PKG_VERSION)-linux-64.zip
-PKG_SOURCE_URL:=https://github.com/XTLS/Xray-core/releases/download/v$(PKG_VERSION)/
-PKG_SOURCE_URL_FILE:=Xray-linux-64.zip
-PKG_HASH:=3e90f0bbb5bbb2b397f46fec96b0eb4a240448bf8d282666da2f80cbaaa24fe7
-
-PKG_MAINTAINER:=Tianling Shen <cnsztl@immortalwrt.org>
-PKG_LICENSE:=MPL-2.0
-PKG_LICENSE_FILES:=LICENSE
-
-include $(INCLUDE_DIR)/package.mk
-
-define Package/xray-core
-  TITLE:=A platform for building proxies to bypass network restrictions
-  SECTION:=net
-  CATEGORY:=Network
-  URL:=https://xtls.github.io
-  DEPENDS:=@TARGET_x86_64 +ca-bundle
-endef
-
-define Package/xray-core/description
-  Xray helps you to build your own computer network.
-endef
-
-define Package/xray-core/conffiles
-/etc/xray/
-/etc/config/xray
-endef
-
-define Build/Prepare
-	mkdir -p $(PKG_BUILD_DIR)
-	unzip -q -d $(PKG_BUILD_DIR) $(DL_DIR)/$(PKG_SOURCE)
-endef
-
-define Build/Compile
-endef
-
-define Package/xray-core/install
-	$(INSTALL_DIR) $(1)/usr/bin
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/xray $(1)/usr/bin/xray
-	$(INSTALL_DIR) $(1)/usr/share/xray
-	$(INSTALL_DATA) $(PKG_BUILD_DIR)/geoip.dat $(1)/usr/share/xray/geoip.dat
-	$(INSTALL_DATA) $(PKG_BUILD_DIR)/geosite.dat $(1)/usr/share/xray/geosite.dat
-endef
-
-$(eval $(call BuildPackage,xray-core))
-EOF
-    echo "Patched $makefile to package official prebuilt Xray-linux-64.zip."
-  done
 }
 
 disable_autosamba() {
@@ -372,6 +267,7 @@ pre_stage() {
 
   disable_autosamba
   configure_feeds feeds.conf.default
+  router_pre
 
   mkdir -p package/custom
 
@@ -386,6 +282,8 @@ pre_stage() {
 
 post_stage() {
   cd "$OPENWRT_DIR"
+
+  router_post
 
   patch_packages
   system_defaults

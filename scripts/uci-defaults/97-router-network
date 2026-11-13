@@ -1,0 +1,43 @@
+#!/bin/sh
+# Seed this profile once; the marker follows /etc/config during sysupgrade.
+[ -e /etc/config/.router-network-initialized ] && exit 0
+
+# Apply the routed LAN profile only when the LAN uses a static address.
+if [ "$(uci -q get network.lan.proto)" = 'static' ]; then
+  uci set network.lan.ip6assign='64'
+  uci set dhcp.lan=dhcp
+  uci set dhcp.lan.interface='lan'
+  uci set dhcp.lan.ignore='0'
+  uci set dhcp.lan.start='100'
+  uci set dhcp.lan.limit='150'
+  uci set dhcp.lan.leasetime='12h'
+  uci set dhcp.lan.dhcpv6='server'
+  uci set dhcp.lan.ra='server'
+  uci set dhcp.lan.ra_slaac='1'
+  uci -q delete dhcp.lan.ra_flags
+  uci add_list dhcp.lan.ra_flags='managed-config'
+  uci add_list dhcp.lan.ra_flags='other-config'
+fi
+
+if uci -q get network.wan >/dev/null; then
+  uci set network.wan.ipv6='auto'
+  # PPPoE creates its own dynamic IPv6 interface; retain that behavior.
+  if [ "$(uci -q get network.wan.proto)" = 'dhcp' ]; then
+    uci set network.wan6=interface
+    uci set network.wan6.device='@wan'
+    uci set network.wan6.proto='dhcpv6'
+    uci set network.wan6.reqaddress='try'
+    uci set network.wan6.reqprefix='auto'
+  fi
+fi
+uci set dhcp.@dnsmasq[0].filter_aaaa='0'
+uci commit network
+uci commit dhcp
+
+# Configure a subscription before enabling either transparent proxy.
+uci -q set openclash.config.enable='0'
+uci -q commit openclash
+uci -q set passwall2.@global[0].enabled='0'
+uci -q commit passwall2
+touch /etc/config/.router-network-initialized
+exit 0

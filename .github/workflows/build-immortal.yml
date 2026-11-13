@@ -137,6 +137,7 @@ jobs:
           STAGE=post "$SCRIPT_FILE"
           cd openwrt
           make defconfig
+          bash "$GITHUB_WORKSPACE/scripts/verify-config.sh"
           echo "Selected proxy packages after defconfig:"
           grep -E '^(CONFIG_PACKAGE_(luci-app-ssr-plus|luci-i18n-ssr-plus|luci-app-passwall|luci-app-passwall2|luci-app-homeproxy|luci-i18n-homeproxy|luci-app-nikki|nikki|mihomo-meta|mihomo-alpha|xray-core|v2ray-core|mosdns|shadowsocks-libev|shadowsocksr-libev|shadowsocks-rust|hysteria|tuic-client|naiveproxy|kcptun|trojan|sing-box|firewall4|kmod-nft-tproxy|ucode-mod-digest)=y|CONFIG_PACKAGE_luci-app-(ssr-plus|passwall2)_INCLUDE_|CONFIG_PACKAGE_luci-app-passwall2_Basic_Core_)' .config || true
 
@@ -149,8 +150,6 @@ jobs:
         working-directory: ./openwrt
         run: |
           make download -j"$(nproc)" V=s || make download -j1 V=s
-          find dl -size -1024c -exec ls -l {} \;
-          find dl -size -1024c -exec rm -f {} \;
           make download -j1 V=s
 
       - name: 编译固件
@@ -170,6 +169,9 @@ jobs:
             exit 1
           fi
           make -j1 V=s 2>&1 | tee -a "$GITHUB_WORKSPACE/build.log"
+
+      - name: 校验固件镜像和实际安装包
+        run: python3 scripts/verify-firmware.py openwrt/bin/targets/x86/64
 
       - name: 收集失败诊断
         if: failure()
@@ -227,6 +229,23 @@ jobs:
           test "$(find "$firmware_dir" -type f | wc -l)" -gt 0
           echo "firmware_dir=$firmware_dir" >> "$GITHUB_OUTPUT"
           echo "release_tag=$(date +%Y%m%d-%H%M)" >> "$GITHUB_OUTPUT"
+
+      - name: 保存源码版本与构建配置
+        run: |
+          cp openwrt/.config firmware/build.config
+          cp openwrt/feeds.conf.default firmware/feeds.conf.default
+          cp openwrt/openclash-core-version.txt firmware/
+          cp openwrt/bin/targets/x86/64/*.manifest firmware/
+          {
+            echo "Source: $REPO_URL ($REPO_BRANCH)"
+            git -C openwrt rev-parse HEAD
+            for source in openwrt/feeds/* openwrt/.openclash-source; do
+              [ -d "$source/.git" ] || continue
+              echo "$source $(git -C "$source" rev-parse HEAD)"
+            done
+          } > firmware/source-versions.txt
+          cd firmware
+          sha256sum -- * > SHA256SUMS
 
       - name: 上传固件
         uses: actions/upload-artifact@v6

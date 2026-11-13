@@ -47,7 +47,7 @@ LEDE 构建：
 ImmortalWrt 构建：
 
 - 默认源码：`https://github.com/immortalwrt/immortalwrt`
-- 默认分支：`openwrt-24.10`
+- 默认分支：`openwrt-24.10`（保留此前因主题兼容而回退的版本基础，每次构建拉取该分支最新代码）
 - 默认配置：`config/immortal_x86_64.config`
 - 默认脚本：`scripts/diy-immortal.sh`
 
@@ -58,9 +58,28 @@ ImmortalWrt 构建：
 
 ## 主题与插件说明
 
-LEDE 方案默认启用 `luci-theme-edge`、常用 LuCI 应用、`SSR-Plus`、`PassWall2` 和基础命令行工具。
+LEDE 方案默认启用 `luci-theme-edge`、常用 LuCI 应用、`OpenClash`、`SSR-Plus`、`PassWall2` 和基础命令行工具。
 
-ImmortalWrt 方案默认启用 `luci-theme-edge`、`SSR-Plus`、`PassWall2`、`HomeProxy` 和 `Nikki`。
+ImmortalWrt 方案默认启用 `luci-theme-edge`、`OpenClash`、`SSR-Plus`、`PassWall2`、`HomeProxy` 和 `Nikki`。
+
+OpenClash 从 `vernesong/OpenClash` 的 `master` 获取最新源码；PassWall2 及其依赖从官方 `Openwrt-Passwall` 的 `main` 获取。代理核心使用上游软件包定义，不再覆盖为旧版 Xray/Hysteria 二进制。OpenClash 额外内置最新稳定版 Mihomo 的 amd64-compatible 核心，下载时验证 GitHub 发布资产的 SHA256；下载或校验失败会终止构建。
+
+两套配置均包含：
+
+- 基本路由、NAT、防火墙、LuCI 网络管理、DHCP 上网和 PPPoE 拨号。
+- IPv6 内核、DHCPv6 客户端、前缀委派（PD）、odhcpd 的 DHCPv6 服务、RA 与 SLAAC。
+- dnsmasq-full：DNS 缓存、DHCPv4、静态租约、DNSSEC 和 IPv6 DNS 解析支持；IPv6 地址分配由 odhcpd 负责。
+- LEDE 使用 firewall3/iptables/ipset，ImmortalWrt 使用 firewall4/nftables/nftset，PassWall2 的透明代理后端与之匹配。
+
+首次应用网络默认配置时，LAN 为 `192.168.2.1/24`，DHCP 地址池为 `.100` 至 `.249`、租期 12 小时，LAN 分配 IPv6 /64 并启用 RA/SLAAC 与 DHCPv6；DHCP WAN 自动请求 IPv6 地址和前缀，不屏蔽 AAAA。公网 IPv6 仍需运营商提供地址及 PD；PPPoE 账号和密码需在刷机后填写。保留旧配置升级时请检查现有网络设置，完整默认配置以全新刷写为准。
+
+OpenClash 和 PassWall2 默认关闭，导入订阅后选择一个启用。同一网络不要同时启用多个透明代理或 DNS 接管服务，以免争抢规则和端口。其他已有代理插件也应保持关闭。
+
+优先使用 `OpenWrt Immortal Build` 构建 24.10 固件。此前因为兼容问题回退过版本，因此保留 ImmortalWrt `openwrt-24.10` 和 LEDE 的 LuCI `openwrt-24.10` 分支，不自动升级到 25.12；LEDE 主源码仍跟随原来的 `master`，所以新内核与旧 LuCI 的组合也需要编译和实机验证。Edge 使用 `master` 分支的 Lua 模板，显式包含 `luci-compat`、`luci-lua-runtime`，同时保留 Bootstrap 备用主题。兼容库齐全不代表页面已通过实测。
+
+构建产物附带 `build.config`、`feeds.conf.default`、`source-versions.txt` 和 `openclash-core-version.txt`，方便核对实际源码和核心版本。此仓库保存构建配置，完整 OpenWrt 源码由 Actions 在构建时克隆。
+
+工作流在 `make defconfig` 后检查必需配置；编译后检查 BIOS/UEFI 镜像是否存在、gzip 是否完整，以及实际固件 manifest 是否包含路由、IPv6、DNS/DHCP、OpenClash、PassWall2 和核心组件。上传时附带 manifest 与 `SHA256SUMS`。这些检查不代替实机测试：验收还需要确认 WAN 上网、LAN DHCP/静态租约、IPv4 NAT、IPv6 PD/RA/DHCPv6、AAAA 解析、防火墙和两个代理分别运行。构建失败会保留诊断日志；只有 Actions 实际编译通过才表示已成功产出固件。
 
 默认情况下，两个方案都会把 LAN IP 改为 `192.168.2.1`，将 LuCI 默认语言设置为简体中文，并将默认主题设置为 `edge`。
 

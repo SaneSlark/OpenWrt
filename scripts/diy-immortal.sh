@@ -10,6 +10,7 @@ set -e
 WORKDIR="${GITHUB_WORKSPACE:-$PWD}"
 OPENWRT_DIR="${WORKDIR}/openwrt"
 STAGE="${STAGE:-pre}"
+source "${WORKDIR}/scripts/router-common.sh"
 
 # ===== 自定义区域：需要不同插件时改这里 =====
 DEFAULT_THEME="edge"
@@ -85,63 +86,11 @@ module_paths() {
   done
 }
 
-patch_hysteria() {
-  local dir makefile
-
-  for dir in package/feeds/*/hysteria feeds/*/hysteria; do
-    [ -d "$dir" ] || continue
-    makefile="$dir/Makefile"
-    cat > "$makefile" <<'EOF'
-include $(TOPDIR)/rules.mk
-
-PKG_NAME:=hysteria
-PKG_VERSION:=2.8.2
-PKG_RELEASE:=1
-
-PKG_SOURCE:=hysteria-linux-amd64
-PKG_SOURCE_URL:=https://github.com/apernet/hysteria/releases/download/app/v$(PKG_VERSION)/
-PKG_HASH:=b11bf0fb5f84a3f5c6baff3696e899539e68af4cee868c9203cfb896784ad3b0
-
-PKG_LICENSE:=MIT
-PKG_MAINTAINER:=Aperture Internet Laboratory
-
-include $(INCLUDE_DIR)/package.mk
-
-define Package/hysteria
-  SECTION:=net
-  CATEGORY:=Network
-  TITLE:=A feature-packed network utility optimized for networks of poor quality
-  URL:=https://github.com/apernet/hysteria
-  DEPENDS:=@TARGET_x86_64 +ca-bundle
-endef
-
-define Package/hysteria/description
-  Hysteria is a feature-packed network utility optimized for networks of poor quality.
-endef
-
-define Build/Prepare
-	mkdir -p $(PKG_BUILD_DIR)
-	$(CP) $(DL_DIR)/$(PKG_SOURCE) $(PKG_BUILD_DIR)/hysteria
-endef
-
-define Build/Compile
-endef
-
-define Package/hysteria/install
-	$(INSTALL_DIR) $(1)/usr/bin
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/hysteria $(1)/usr/bin/hysteria
-endef
-
-$(eval $(call BuildPackage,hysteria))
-EOF
-    echo "Patched $makefile to package official prebuilt hysteria-linux-amd64."
-  done
-}
-
 pre_stage() {
   cd "$OPENWRT_DIR"
 
   configure_feeds feeds.conf.default
+  router_pre
   mkdir -p package/custom
 
   if [ "$ENABLE_THEME_EDGE" = "true" ]; then
@@ -152,8 +101,9 @@ pre_stage() {
 post_stage() {
   cd "$OPENWRT_DIR"
 
+  router_post
+
   module_paths
-  patch_hysteria
 
   sed -i "s#192.168.1.1#${LAN_IP}#g" package/base-files/files/bin/config_generate || true
   sed -i "s#255.255.255.0#${LAN_NETMASK}#g" package/base-files/files/bin/config_generate || true
