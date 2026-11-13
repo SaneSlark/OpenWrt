@@ -2,7 +2,7 @@
 # Run inside the source tree after make defconfig, before an expensive build.
 set -eu
 required=(
-  IPV6 KERNEL_IPV6 BUSYBOX_CONFIG_UDHCPC GRUB_IMAGES GRUB_EFI_IMAGES
+  IPV6 KERNEL_IPV6 GRUB_IMAGES GRUB_EFI_IMAGES
   TARGET_ROOTFS_SQUASHFS
   PACKAGE_luci-app-openclash PACKAGE_luci-app-passwall2
   PACKAGE_luci-compat PACKAGE_luci-mod-network PACKAGE_luci-app-firewall
@@ -13,6 +13,11 @@ required=(
   PACKAGE_dnsmasq_full_dnssec PACKAGE_kmod-tun PACKAGE_ip-full
 )
 failed=0
+if grep -qxF 'CONFIG_BUSYBOX_CUSTOM=y' .config; then
+  required+=(BUSYBOX_CONFIG_UDHCPC)
+else
+  required+=(BUSYBOX_DEFAULT_UDHCPC)
+fi
 for option in "${required[@]}"; do
   if ! grep -qxF "CONFIG_${option}=y" .config; then
     echo "Missing required router option: CONFIG_${option}=y" >&2

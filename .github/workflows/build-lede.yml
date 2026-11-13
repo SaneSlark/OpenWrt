@@ -216,6 +216,7 @@ jobs:
         with:
           name: ${{ env.ARTIFACT_NAME }}_failure_logs
           path: failure-logs/**
+          include-hidden-files: true
           if-no-files-found: warn
           retention-days: 7
 
