@@ -60,7 +60,7 @@ ImmortalWrt 构建：
 
 LEDE 方案默认启用 `luci-theme-edge`、常用 LuCI 应用、`OpenClash`、`SSR-Plus`、`PassWall2` 和基础命令行工具。
 
-ImmortalWrt 方案默认启用 `luci-theme-edge`、`OpenClash`、`SSR-Plus`、`PassWall2`、`HomeProxy` 和 `Nikki`。
+ImmortalWrt 方案默认启用 `luci-theme-edge`、`OpenClash`、`SSR-Plus`、`PassWall2` 和 `HomeProxy`。Nikki 的额外 feed 默认关闭，避免其 Mihomo 变体与 24.10 feeds 产生循环依赖。
 
 OpenClash 从 `vernesong/OpenClash` 的 `master` 获取最新源码；PassWall2 及其依赖从官方 `Openwrt-Passwall` 的 `main` 获取。代理核心使用上游软件包定义，不再覆盖为旧版 Xray/Hysteria 二进制。OpenClash 额外内置最新稳定版 Mihomo 的 amd64-compatible 核心，下载时验证 GitHub 发布资产的 SHA256；下载或校验失败会终止构建。
 
