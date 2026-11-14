@@ -207,7 +207,7 @@ EOF
 }
 
 disabled_packages() {
-  [ "$ENABLE_FILETRANSFER" = "true" ] || sed -i '/CONFIG_PACKAGE_luci-app-filetransfer=y/d;/CONFIG_PACKAGE_luci-i18n-filetransfer-zh-cn=y/d' .config || true
+  [ "$ENABLE_FILETRANSFER" = "true" ] || sed -i '/CONFIG_PACKAGE_luci-app-filemanager=y/d;/CONFIG_PACKAGE_luci-i18n-filemanager-zh-cn=y/d' .config || true
   [ "$ENABLE_VLMCSD" = "true" ] || sed -i '/CONFIG_PACKAGE_luci-app-vlmcsd=y/d;/CONFIG_PACKAGE_luci-i18n-vlmcsd-zh-cn=y/d' .config || true
   [ "$ENABLE_SSR_PLUS" = "true" ] || sed -i '/CONFIG_PACKAGE_luci-app-ssr-plus/d;/CONFIG_PACKAGE_luci-i18n-ssr-plus-zh-cn/d;/CONFIG_PACKAGE_luci-app-ssr-plus_INCLUDE_/d' .config || true
   if [ "$ENABLE_SSR_PLUS_LEGACY_EXTRAS" != "true" ]; then
@@ -267,9 +267,7 @@ pre_stage() {
 
   disable_autosamba
   configure_feeds feeds.conf.default
-  # gettext 0.22.5's local exitfail.h diff predates the current gnulib header.
-  cp "${WORKDIR}/patches/lede/901-gettext-gnulib-exitfail.patch" \
-    package/libs/gettext-full/patches/
+  gettext_gnulib
   router_pre
 
   mkdir -p package/custom
@@ -281,6 +279,29 @@ pre_stage() {
   if [ "$ENABLE_THEME_EDGE" = "true" ]; then
     clone_update "https://github.com/kiddin9/luci-theme-edge.git" "package/custom/luci-theme-edge" "master"
   fi
+}
+
+gettext_gnulib() {
+  # Match the gnulib baseline used with gettext 0.22.5 in OpenWrt 24.10.
+  # Scope it to gettext: newer LEDE host tools still need their own gnulib.
+  local revision="c99c8d491850dc3a6e0b8604a2729d8bc5c0eff1"
+  local dest=".gettext-gnulib"
+  local makefile="package/libs/gettext-full/Makefile"
+  grep -qxF 'PKG_VERSION:=0.22.5' "$makefile" || {
+    echo "gettext version changed; review the private gnulib compatibility hook." >&2
+    return 1
+  }
+  if [ ! -d "$dest/.git" ]; then
+    git init "$dest"
+    git -C "$dest" remote add origin https://github.com/coreutils/gnulib.git
+  fi
+  git -C "$dest" fetch --depth 1 origin "$revision"
+  git -C "$dest" checkout --detach FETCH_HEAD
+  test "$(git -C "$dest" rev-parse HEAD)" = "$revision"
+  # Remove the earlier partial fix when reusing an existing checkout.
+  rm -f package/libs/gettext-full/patches/901-gettext-gnulib-exitfail.patch
+  sed -i 's#^export GNULIB_SRCDIR:=.*#export GNULIB_SRCDIR:=$(TOPDIR)/.gettext-gnulib#' "$makefile"
+  grep -qxF 'export GNULIB_SRCDIR:=$(TOPDIR)/.gettext-gnulib' "$makefile"
 }
 
 post_stage() {

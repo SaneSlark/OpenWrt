@@ -1,0 +1,71 @@
+name: Publish existing firmware
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 已成功构建的 Actions Run ID
+        required: true
+        type: string
+
+concurrency:
+  group: publish-firmware-${{ inputs.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-22.04
+    permissions:
+      actions: read
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RUN_ID: ${{ inputs.run_id }}
+    steps:
+      - name: 检查原构建记录
+        id: source
+        run: |
+          [[ "$RUN_ID" =~ ^[0-9]+$ ]]
+          gh api "repos/$GH_REPO/actions/runs/$RUN_ID" > run.json
+          test "$(jq -r .conclusion run.json)" = success
+          test "$(jq -r .event run.json)" = workflow_dispatch
+          workflow="$(jq -r .path run.json)"
+          case "$workflow" in
+            .github/workflows/build-lede.yml) variant=lede ;;
+            .github/workflows/build-immortal.yml) variant=immortal ;;
+            *) echo "Unsupported source workflow: $workflow" >&2; exit 1 ;;
+          esac
+          gh api --paginate "repos/$GH_REPO/actions/runs/$RUN_ID/artifacts" \
+            --jq '.artifacts[] | select(.expired == false) | .name' > artifacts.txt
+          mapfile -t artifacts < <(grep -Ev '_(failure_logs|unverified_images)$' artifacts.txt)
+          test "${#artifacts[@]}" = 1
+          echo "artifact_name=${artifacts[0]}" >> "$GITHUB_OUTPUT"
+          echo "sha=$(jq -r .head_sha run.json)" >> "$GITHUB_OUTPUT"
+          echo "tag=$variant-$RUN_ID-$(jq -r .run_attempt run.json)" >> "$GITHUB_OUTPUT"
+
+      - name: 下载并校验原始产物
+        env:
+          ARTIFACT_NAME: ${{ steps.source.outputs.artifact_name }}
+        run: |
+          gh run download "$RUN_ID" --name "$ARTIFACT_NAME" --dir firmware
+          cd firmware
+          test -s build.config
+          test -s source-versions.txt
+          test -s SHA256SUMS
+          sha256sum --check --strict SHA256SUMS
+          compgen -G '*combined.img.gz' >/dev/null
+          compgen -G '*combined-efi.img.gz' >/dev/null
+
+      - name: 补发 GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.source.outputs.tag }}
+          target_commitish: ${{ steps.source.outputs.sha }}
+          name: ${{ steps.source.outputs.artifact_name }} ${{ steps.source.outputs.tag }}
+          files: firmware/*
+          fail_on_unmatched_files: true
+          body: |
+            补发已成功构建并通过镜像校验的固件，无需重新编译。
+            原构建：${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ inputs.run_id }}
+            下载后的产物已重新核对 SHA256SUMS。

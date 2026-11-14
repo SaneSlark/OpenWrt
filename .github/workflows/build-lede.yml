@@ -30,11 +30,11 @@ on:
       upload_release:
         description: 是否创建 GitHub Release
         required: true
-        default: "false"
+        default: "true"
         type: choice
         options:
-          - "false"
           - "true"
+          - "false"
 
 concurrency:
   group: openwrt-lede-${{ github.ref }}
@@ -52,7 +52,7 @@ jobs:
       CONFIG_FILE: ${{ github.event.inputs.config_file || 'config/lede_x86_64.config' }}
       SCRIPT_FILE: ${{ github.event.inputs.script_file || 'scripts/diy-lede.sh' }}
       ARTIFACT_NAME: ${{ github.event.inputs.artifact_name || 'OpenWrt_x86_64_Lede' }}
-      UPLOAD_RELEASE: ${{ github.event.inputs.upload_release || 'false' }}
+      UPLOAD_RELEASE: ${{ github.event.inputs.upload_release || 'true' }}
       COMPILE_THREADS: ${{ github.event.inputs.compile_threads || '1' }}
       TZ: Asia/Shanghai
 
@@ -112,10 +112,9 @@ jobs:
           path: |
             openwrt/dl
             openwrt/.ccache
-          key: ${{ runner.os }}-${{ env.REPO_BRANCH }}-${{ hashFiles('config/*.config', 'scripts/*.sh') }}
+          key: ${{ runner.os }}-lede-${{ env.REPO_BRANCH }}-${{ hashFiles('config/*.config', 'scripts/**', 'patches/**', '.github/workflows/build-lede.yml') }}
           restore-keys: |
-            ${{ runner.os }}-${{ env.REPO_BRANCH }}-
-            ${{ runner.os }}-
+            ${{ runner.os }}-lede-${{ env.REPO_BRANCH }}-
 
       - name: 执行预处理脚本
         env:
@@ -159,6 +158,13 @@ jobs:
           make download -j"$(nproc)" V=s || make download -j1 V=s
           make download -j1 V=s
 
+      - name: 提前验证 gettext 与 gnulib 兼容性
+        working-directory: ./openwrt
+        run: |
+          set -o pipefail
+          make tools/install -j"$(nproc)" V=s 2>&1 | tee "$GITHUB_WORKSPACE/build.log"
+          make package/libs/gettext-full/host/compile -j1 V=s 2>&1 | tee -a "$GITHUB_WORKSPACE/build.log"
+
       - name: 编译固件
         id: compile
         working-directory: ./openwrt
@@ -170,7 +176,7 @@ jobs:
           echo "$threads thread compile"
           df -h
           set -o pipefail
-          if make -j"$threads" V=s 2>&1 | tee "$GITHUB_WORKSPACE/build.log"; then
+          if make -j"$threads" V=s 2>&1 | tee -a "$GITHUB_WORKSPACE/build.log"; then
             exit 0
           fi
           if [ "$threads" = "1" ]; then
@@ -253,7 +259,7 @@ jobs:
           find "$firmware_dir" -type f | sort
           test "$(find "$firmware_dir" -type f | wc -l)" -gt 0
           echo "firmware_dir=$firmware_dir" >> "$GITHUB_OUTPUT"
-          echo "release_tag=$(date +%Y%m%d-%H%M)" >> "$GITHUB_OUTPUT"
+          echo "release_tag=lede-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
 
       - name: 保存源码版本与构建配置
         run: |
@@ -264,7 +270,7 @@ jobs:
           {
             echo "Source: $REPO_URL ($REPO_BRANCH)"
             git -C openwrt rev-parse HEAD
-            for source in openwrt/feeds/* openwrt/.openclash-source; do
+            for source in openwrt/feeds/* openwrt/.openclash-source openwrt/.gettext-gnulib; do
               [ -d "$source/.git" ] || continue
               echo "$source $(git -C "$source" rev-parse HEAD)"
             done
@@ -285,5 +291,11 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.collect.outputs.release_tag }}
+          target_commitish: ${{ github.sha }}
           name: ${{ env.ARTIFACT_NAME }} ${{ steps.collect.outputs.release_tag }}
           files: ${{ steps.collect.outputs.firmware_dir }}/*
+          fail_on_unmatched_files: true
+          body: |
+            构建记录：${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            源码：${{ env.REPO_URL }}（${{ env.REPO_BRANCH }}）
+            固件已通过镜像和软件包清单校验，校验和见 SHA256SUMS。

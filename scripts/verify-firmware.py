@@ -70,6 +70,7 @@ def verify(target):
         "luci-proto-ipv6", "luci-app-firewall", "luci-compat",
         "luci-app-openclash", "luci-app-passwall2", "xray-core", "sing-box",
         "luci-theme-edge", "luci-theme-bootstrap", "luci-lua-runtime",
+        "luci-app-ssr-plus",
     }
     manifests = sorted(target.glob("*.manifest"))
     if not manifests:
@@ -79,8 +80,13 @@ def verify(target):
         missing = required - packages
         if missing:
             raise SystemExit(f"{path.name}: missing packages: {sorted(missing)}")
-        if not {"firewall", "firewall4"} & packages:
-            raise SystemExit(f"{path.name}: firewall missing")
+        if len({"firewall", "firewall4"} & packages) != 1:
+            raise SystemExit(f"{path.name}: exactly one firewall backend is required")
+        backend = ({"kmod-nft-tproxy", "kmod-nft-socket", "kmod-nft-nat"}
+                   if "firewall4" in packages else
+                   {"ipset", "iptables-mod-tproxy", "ip6tables-mod-nat", "kmod-ipt-nat"})
+        if backend - packages:
+            raise SystemExit(f"{path.name}: missing proxy backend packages: {sorted(backend - packages)}")
         if {"dnsmasq", "dnsmasq-dhcpv6", "odhcpd"} & packages:
             raise SystemExit(f"{path.name}: conflicting DNS/DHCP packages")
     print(f"Verified {len(images)} compressed BIOS/UEFI images and {len(manifests)} package manifests")

@@ -141,7 +141,7 @@ EOF
   [ "$ENABLE_HOMEPROXY" = "true" ] || sed -i '/CONFIG_PACKAGE_luci-app-homeproxy/d;/CONFIG_PACKAGE_luci-i18n-homeproxy-zh-cn/d' .config || true
   [ "$ENABLE_HYSTERIA" = "true" ] || sed -i '/CONFIG_PACKAGE_hysteria=y/d;/CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_Hysteria=y/d' .config || true
   [ "$ENABLE_NAIVEPROXY" = "true" ] || sed -i '/CONFIG_PACKAGE_naiveproxy=y/d;/CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_NaiveProxy=y/d' .config || true
-  [ "$ENABLE_FILETRANSFER" = "true" ] || sed -i '/CONFIG_PACKAGE_luci-app-filetransfer=y/d;/CONFIG_PACKAGE_luci-i18n-filetransfer-zh-cn=y/d' .config || true
+  [ "$ENABLE_FILETRANSFER" = "true" ] || sed -i '/CONFIG_PACKAGE_luci-app-filemanager=y/d;/CONFIG_PACKAGE_luci-i18n-filemanager-zh-cn=y/d' .config || true
   [ "$ENABLE_VLMCSD" = "true" ] || sed -i '/CONFIG_PACKAGE_luci-app-vlmcsd=y/d;/CONFIG_PACKAGE_luci-i18n-vlmcsd-zh-cn=y/d' .config || true
   [ "$ENABLE_KCPTUN" = "true" ] || sed -i '/CONFIG_PACKAGE_kcptun-client=y/d' .config || true
   [ "$ENABLE_THEME_EDGE" = "true" ] || sed -i '/luci-theme-edge/d' .config || true
