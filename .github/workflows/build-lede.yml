@@ -160,6 +160,7 @@ jobs:
           make download -j1 V=s
 
       - name: 编译固件
+        id: compile
         working-directory: ./openwrt
         run: |
           threads="$COMPILE_THREADS"
@@ -178,7 +179,9 @@ jobs:
           make -j1 V=s 2>&1 | tee -a "$GITHUB_WORKSPACE/build.log"
 
       - name: 校验固件镜像和实际安装包
-        run: python3 scripts/verify-firmware.py openwrt/bin/targets/x86/64
+        run: |
+          set -o pipefail
+          python3 scripts/verify-firmware.py openwrt/bin/targets/x86/64 2>&1 | tee validation.log
 
       - name: 收集失败诊断
         if: failure()
@@ -189,6 +192,8 @@ jobs:
           cp openwrt/.config failure-logs/.config || true
           cp openwrt/tmp/.config-package.in failure-logs/config-package.in || true
           cp build.log failure-logs/build.log || true
+          cp validation.log failure-logs/validation.log || true
+          cp openwrt/bin/targets/x86/64/*.manifest failure-logs/ || true
           {
             echo "### OpenWrt build failure summary"
             echo
@@ -217,6 +222,18 @@ jobs:
           name: ${{ env.ARTIFACT_NAME }}_failure_logs
           path: failure-logs/**
           include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: 保留校验失败的镜像供诊断
+        if: failure() && steps.compile.outcome == 'success'
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ env.ARTIFACT_NAME }}_unverified_images
+          path: |
+            openwrt/bin/targets/x86/64/*.img.gz
+            openwrt/bin/targets/x86/64/*.manifest
+            openwrt/bin/targets/x86/64/profiles.json
           if-no-files-found: warn
           retention-days: 7
 

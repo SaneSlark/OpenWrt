@@ -267,6 +267,9 @@ pre_stage() {
 
   disable_autosamba
   configure_feeds feeds.conf.default
+  # gettext 0.22.5's local exitfail.h diff predates the current gnulib header.
+  cp "${WORKDIR}/patches/lede/901-gettext-gnulib-exitfail.patch" \
+    package/libs/gettext-full/patches/
   router_pre
 
   mkdir -p package/custom
