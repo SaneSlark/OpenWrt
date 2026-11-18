@@ -162,7 +162,16 @@ jobs:
         working-directory: ./openwrt
         run: |
           set -o pipefail
-          make tools/install -j"$(nproc)" V=s 2>&1 | tee "$GITHUB_WORKSPACE/build.log"
+          threads="$COMPILE_THREADS"
+          if [ -z "$threads" ] || [ "$threads" = "0" ]; then
+            threads="$(nproc)"
+          fi
+          if ! make tools/install -j"$threads" V=s 2>&1 | tee "$GITHUB_WORKSPACE/build.log"; then
+            if [ "$threads" = "1" ]; then
+              exit 1
+            fi
+            make tools/install -j1 V=s 2>&1 | tee -a "$GITHUB_WORKSPACE/build.log"
+          fi
           make package/libs/gettext-full/host/compile -j1 V=s 2>&1 | tee -a "$GITHUB_WORKSPACE/build.log"
 
       - name: 编译固件

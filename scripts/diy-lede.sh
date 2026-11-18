@@ -267,6 +267,9 @@ pre_stage() {
 
   disable_autosamba
   configure_feeds feeds.conf.default
+  # elfutils regenerates its parser in maintainer mode. Its generators and
+  # their installed data must be ready before a parallel tools build starts.
+  bash "${WORKDIR}/scripts/lede-host-tools.sh"
   gettext_gnulib
   router_pre
 

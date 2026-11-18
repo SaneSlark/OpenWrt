@@ -96,6 +96,7 @@ OpenClash 和 PassWall2 默认关闭，导入订阅后选择一个启用。同�
 - 两套配置使用当前 24.10 LuCI 提供的 `luci-app-filemanager`，替代已移除的 `luci-app-filetransfer`。
 - 清理 SSR-Plus 上游已移除的旧配置开关。Hysteria、TUIC 等核心仍通过独立软件包选择；新版本 SSR 的协议支持以实际界面和 Xray/Mihomo 后端为准。
 - LEDE 的 gettext 0.22.5 单独使用固定的 gnulib `c99c8d491850dc3a6e0b8604a2729d8bc5c0eff1`（24.10 基线）。LEDE 其他工具仍使用其原有 gnulib；不再逐个修补旧 gettext 与新 gnulib 的差异。工作流先构建 gettext 主机工具，提前暴露兼容错误。
+- LEDE 为 elfutils 补齐 Bison/Flex 构建依赖，确保解析器生成工具及数据安装完成后再编译。工具预编译遵守 `compile_threads`；并行失败时单线程重试。
 - 两套工作流分开恢复缓存；Release 标签使用方案名、Run ID 和重跑次数，避免同一分钟发布互相覆盖。
 - 固件清单必须包含且只包含一个防火墙后端，并检查透明代理所需的内核模块。
 - `make defconfig` 后逐项比对输入配置中明确选择的软件包及其选项；上游移除或改名时立即报错，避免带着缺失功能继续编译。
