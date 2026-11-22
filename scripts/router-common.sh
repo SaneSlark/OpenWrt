@@ -7,10 +7,9 @@ router_configure_feeds() {
   # Keep the custom packages in a consistent order when rerunning preprocessing.
   sed -i -E '/^src-git[[:blank:]]+(passwall_packages|passwall2?|helloworld|homeproxy|clashoo|vantage)[[:blank:]]/d' "$file"
   if [ "$ENABLE_PASSWALL" = "true" ]; then
-    cat >> "$file" <<'EOF'
-src-git passwall_packages https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git;main
-src-git passwall https://github.com/Openwrt-Passwall/openwrt-passwall.git;main
-EOF
+    # The forks also ship PassWall in LuCI. Install the official app first.
+    sed -i '1i src-git passwall https://github.com/Openwrt-Passwall/openwrt-passwall.git;main' "$file"
+    echo 'src-git passwall_packages https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git;main' >> "$file"
   fi
   if [ "$ENABLE_SSR_PLUS" = "true" ]; then
     echo 'src-git helloworld https://github.com/fw876/helloworld.git' >> "$file"
@@ -62,6 +61,12 @@ router_fix_efi_partition_type() {
 
 router_post() {
   router_fix_host_tools
+  # Avoid a Kconfig cycle when SSR-Plus resolves its optional Mihomo package.
+  sed -i '/^[[:blank:]]*PROVIDES:=mihomo clash-meta$/d' feeds/clashoo/clashoo/Makefile
+  if [ "${FIRMWARE_VARIANT:-}" = "openwrt" ] && [ -L package/feeds/luci/luci-app-weechat ]; then
+    # The unused 25.12.6 app forms a dependency cycle with its two core variants.
+    rm -f package/feeds/luci/luci-app-weechat
+  fi
   mkdir -p files/etc/uci-defaults
   cp "${WORKDIR}/scripts/uci-defaults/97-router-network" files/etc/uci-defaults/
   chmod +x files/etc/uci-defaults/97-router-network

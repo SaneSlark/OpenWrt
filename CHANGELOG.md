@@ -16,5 +16,6 @@
 ### 构建与发布
 
 - 补齐 Edge 登录模板兼容补丁中遗漏的空行，修复三套构建在预处理阶段中止的问题。
+- 优先选用 PassWall 官方配方，解除 Clashoo 与 SSR-Plus 的软件包依赖循环，并启用官方 OpenWrt 的简体中文翻译选项。
 - 推送到 `main` 后，LEDE、ImmortalWrt 和官方 OpenWrt 自动构建。编译和镜像校验通过后，Release 上传固件镜像和 `SHA256SUMS`。
 - 移除手动补发旧构建的 `publish-existing.yml`。
