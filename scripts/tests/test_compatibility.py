@@ -1,4 +1,4 @@
-"""Regression checks for gzip validation and firewall/backend conflicts."""
+"""Regression checks for firmware images and the installed package set."""
 import gzip
 import importlib.util
 from pathlib import Path
@@ -81,9 +81,10 @@ class ManifestTests(unittest.TestCase):
             "base-files", "busybox", "netifd", "dnsmasq-full", "odhcp6c",
             "odhcpd-ipv6only", "ppp-mod-pppoe", "luci-mod-network",
             "luci-proto-ipv6", "luci-app-firewall", "luci-compat",
-            "luci-app-openclash", "luci-app-passwall2", "luci-app-ssr-plus",
-            "xray-core", "sing-box", "luci-theme-edge",
-            "luci-theme-bootstrap", "luci-lua-runtime",
+            "luci-app-openclash", "luci-app-passwall", "luci-app-ssr-plus",
+            "luci-app-clashoo", "clashoo", "xray-core", "sing-box",
+            "luci-theme-edge", "luci-theme-vantage", "luci-theme-bootstrap", "luci-lua-runtime", "ucode-mod-lua",
+            "firewall4", "kmod-nft-tproxy", "kmod-nft-socket", "kmod-nft-nat",
         }
 
     def verify(self, extra):
@@ -95,22 +96,30 @@ class ManifestTests(unittest.TestCase):
             firmware.verify(self.root)
 
     def test_nftables_profile(self):
-        self.verify({"firewall4", "kmod-nft-tproxy", "kmod-nft-socket", "kmod-nft-nat"})
+        self.verify(set())
 
-    def test_iptables_profile(self):
-        self.verify({"firewall", "ipset", "iptables-mod-tproxy", "ip6tables-mod-nat", "kmod-ipt-nat"})
+    def test_iptables_profile_rejected(self):
+        self.packages.remove("firewall4")
+        with self.assertRaisesRegex(SystemExit, "missing packages.*firewall4"):
+            self.verify({"firewall"})
 
     def test_both_firewalls_rejected(self):
-        with self.assertRaisesRegex(SystemExit, "exactly one"):
-            self.verify({"firewall", "firewall4"})
+        with self.assertRaisesRegex(SystemExit, "unexpected packages.*firewall"):
+            self.verify({"firewall"})
 
     def test_missing_tproxy_rejected(self):
-        with self.assertRaisesRegex(SystemExit, "missing proxy backend"):
-            self.verify({"firewall4", "kmod-nft-socket", "kmod-nft-nat"})
+        self.packages.remove("kmod-nft-tproxy")
+        with self.assertRaisesRegex(SystemExit, "missing packages.*kmod-nft-tproxy"):
+            self.verify(set())
 
     def test_conflicting_dhcp_rejected(self):
-        with self.assertRaisesRegex(SystemExit, "conflicting DNS"):
-            self.verify({"firewall4", "kmod-nft-tproxy", "kmod-nft-socket", "kmod-nft-nat", "dnsmasq"})
+        with self.assertRaisesRegex(SystemExit, "unexpected packages.*dnsmasq"):
+            self.verify({"dnsmasq"})
+
+    def test_removed_or_conflicting_apps_rejected(self):
+        for package in ("luci-app-passwall2", "luci-app-homeproxy", "samba4-server", "vsftpd", "mihomo"):
+            with self.subTest(package=package), self.assertRaisesRegex(SystemExit, f"unexpected packages.*{package}"):
+                self.verify({package})
 
 
 if __name__ == "__main__":

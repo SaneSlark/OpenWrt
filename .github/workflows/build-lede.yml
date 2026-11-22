@@ -144,9 +144,9 @@ jobs:
           make defconfig
           bash "$GITHUB_WORKSPACE/scripts/verify-config.sh"
           echo "Selected proxy packages after defconfig:"
-          grep -E '^(# )?(CONFIG_PACKAGE_(luci-app-ssr-plus|luci-i18n-ssr-plus|luci-app-passwall2|xray-core|v2ray-core|mosdns|mihomo|shadowsocks-libev|shadowsocksr-libev|shadowsocks-rust|hysteria|tuic-client|naiveproxy|kcptun|trojan|sing-box)(=y| is not set)|CONFIG_PACKAGE_luci-app-passwall2_Basic_Core_|CONFIG_PACKAGE_luci-app-(ssr-plus|passwall2)_INCLUDE_)' .config || true
+          grep -E '^(# )?CONFIG_PACKAGE_((luci-app-(ssr-plus|passwall|clashoo)|clashoo|xray-core|v2ray-core|mosdns|mihomo|shadowsocks-libev|shadowsocksr-libev|shadowsocks-rust|hysteria|tuic-client|naiveproxy|kcptun|trojan|sing-box|firewall4|kmod-nft-tproxy)(=y| is not set)|luci-app-(ssr-plus|passwall)_(INCLUDE_|Nftables_))' .config || true
           echo "Proxy package source metadata:"
-          for pkg in shadowsocks-libev shadowsocksr-libev xray-core mosdns mihomo hysteria kcptun trojan luci-app-ssr-plus luci-app-passwall2; do
+          for pkg in shadowsocks-libev shadowsocksr-libev xray-core mosdns clashoo hysteria kcptun trojan luci-app-ssr-plus luci-app-passwall luci-app-clashoo; do
             find package feeds -path "*/$pkg/Makefile" -print 2>/dev/null | sort | while read -r makefile; do
               echo "===== $makefile ====="
               grep -E '^(PKG_NAME|PKG_VERSION|PKG_RELEASE|PKG_SOURCE|PKG_SOURCE_URL|PKG_SOURCE_PROTO|PKG_SOURCE_DATE|PKG_SOURCE_VERSION|PKG_HASH|PKG_MIRROR_HASH|GO_PKG|GO_PKG_BUILD_PKG):=' "$makefile" || true
@@ -319,3 +319,4 @@ jobs:
             构建记录：${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
             源码：${{ env.REPO_URL }}（${{ env.REPO_BRANCH }}）
             固件已通过镜像和软件包清单校验，校验和见 SHA256SUMS。
+            [固件更新日志](${{ github.server_url }}/${{ github.repository }}/blob/${{ github.sha }}/CHANGELOG.md)

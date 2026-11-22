@@ -1,0 +1,54 @@
+name: OpenWrt Official Build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      repo_url:
+        description: 源码仓库地址
+        required: true
+        default: https://github.com/openwrt/openwrt
+      repo_branch:
+        description: 源码分支或标签
+        required: true
+        default: v25.12.6
+      config_file:
+        description: 当前仓库中的配置文件路径
+        required: true
+        default: config/openwrt_x86_64.config
+      script_file:
+        description: 当前仓库中的自定义脚本路径
+        required: true
+        default: scripts/diy-immortal.sh
+      artifact_name:
+        description: 编译文件名称
+        required: true
+        default: OpenWrt_x86_64_Official
+      compile_threads:
+        description: 编译线程数，0 表示自动使用全部 CPU
+        required: true
+        default: "2"
+      upload_release:
+        description: 是否创建 GitHub Release
+        required: true
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+
+jobs:
+  build:
+    permissions:
+      contents: write
+    uses: ./.github/workflows/build-immortal.yml
+    with:
+      variant: openwrt
+      repo_url: ${{ inputs.repo_url || 'https://github.com/openwrt/openwrt' }}
+      repo_branch: ${{ inputs.repo_branch || 'v25.12.6' }}
+      config_file: ${{ inputs.config_file || 'config/openwrt_x86_64.config' }}
+      script_file: ${{ inputs.script_file || 'scripts/diy-immortal.sh' }}
+      artifact_name: ${{ inputs.artifact_name || 'OpenWrt_x86_64_Official' }}
+      compile_threads: ${{ inputs.compile_threads || '2' }}
+      upload_release: ${{ inputs.upload_release || 'true' }}

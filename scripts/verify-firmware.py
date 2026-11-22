@@ -89,9 +89,17 @@ def verify(target):
         "base-files", "busybox", "netifd", "dnsmasq-full", "odhcp6c",
         "odhcpd-ipv6only", "ppp-mod-pppoe", "luci-mod-network",
         "luci-proto-ipv6", "luci-app-firewall", "luci-compat",
-        "luci-app-openclash", "luci-app-passwall2", "xray-core", "sing-box",
-        "luci-theme-edge", "luci-theme-bootstrap", "luci-lua-runtime",
+        "luci-app-openclash", "luci-app-passwall", "xray-core", "sing-box",
+        "luci-app-clashoo", "clashoo",
+        "luci-theme-edge", "luci-theme-vantage", "luci-theme-bootstrap", "luci-lua-runtime", "ucode-mod-lua",
         "luci-app-ssr-plus",
+        "firewall4", "kmod-nft-tproxy", "kmod-nft-socket", "kmod-nft-nat",
+    }
+    excluded = {
+        "firewall", "dnsmasq", "dnsmasq-dhcpv6", "odhcpd", "mihomo", "clash-meta",
+        "luci-app-passwall2", "luci-app-homeproxy", "autosamba", "luci-app-samba",
+        "luci-app-samba4", "samba36-server", "samba4-server", "luci-app-ksmbd",
+        "ksmbd-server", "luci-app-nfs", "nfs-kernel-server", "luci-app-vsftpd", "vsftpd", "vsftpd-tls",
     }
     manifests = sorted(target.glob("*.manifest"))
     if not manifests:
@@ -101,15 +109,9 @@ def verify(target):
         missing = required - packages
         if missing:
             raise SystemExit(f"{path.name}: missing packages: {sorted(missing)}")
-        if len({"firewall", "firewall4"} & packages) != 1:
-            raise SystemExit(f"{path.name}: exactly one firewall backend is required")
-        backend = ({"kmod-nft-tproxy", "kmod-nft-socket", "kmod-nft-nat"}
-                   if "firewall4" in packages else
-                   {"ipset", "iptables-mod-tproxy", "ip6tables-mod-nat", "kmod-ipt-nat"})
-        if backend - packages:
-            raise SystemExit(f"{path.name}: missing proxy backend packages: {sorted(backend - packages)}")
-        if {"dnsmasq", "dnsmasq-dhcpv6", "odhcpd"} & packages:
-            raise SystemExit(f"{path.name}: conflicting DNS/DHCP packages")
+        unexpected = excluded & packages
+        if unexpected:
+            raise SystemExit(f"{path.name}: unexpected packages: {sorted(unexpected)}")
     print(f"Verified {len(images)} compressed BIOS/UEFI images and {len(manifests)} package manifests")
 
 

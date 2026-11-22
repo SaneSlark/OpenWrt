@@ -23,31 +23,19 @@ TIMEZONE="CST-8"
 ZONENAME="Asia/Shanghai"
 
 ENABLE_THEME_EDGE="true"
-# LEDE 方案包含 OpenClash 以及已有的代理插件：
-# - SSR-Plus
-# - Passwall2
-# 其他较新的代理应用不在此方案默认启用。
+# LEDE 方案包含 OpenClash、Clashoo、SSR-Plus 和 PassWall。
 ENABLE_FILETRANSFER="true"
 ENABLE_VLMCSD="true"
 ENABLE_SSR_PLUS="true"
 ENABLE_SSR_PLUS_LEGACY_EXTRAS="true"
-ENABLE_PASSWALL2="true"
+ENABLE_PASSWALL="true"
 ENABLE_HYSTERIA="true"
 ENABLE_KCPTUN="true"
 ENABLE_NAIVEPROXY="true"
 ENABLE_SINGBOX="true"
 ENABLE_TUIC_CLIENT="true"
-ENABLE_PASSWALL2_LEGACY_EXTRAS="true"
+ENABLE_PASSWALL_LEGACY_EXTRAS="true"
 # ====================================================================
-
-app_feed() {
-  local enabled="$1"
-  local line="$2"
-  local file="$3"
-
-  [ "$enabled" = "true" ] || return 0
-  grep -Fqx "$line" "$file" || echo "$line" >> "$file"
-}
 
 configure_feeds() {
   local file="$1"
@@ -56,28 +44,7 @@ configure_feeds() {
   sed -i -E "s#^src-git luci .*\$#src-git luci https://github.com/coolsnowwolf/luci.git;${LUCI_FEED_BRANCH}#" "$file"
   grep -Eq '^src-git luci ' "$file" || echo "src-git luci https://github.com/coolsnowwolf/luci.git;${LUCI_FEED_BRANCH}" >> "$file"
 
-  # Keep custom feeds in a deterministic order; the first feed wins on duplicate packages.
-  sed -i \
-    -e '\#src-git helloworld https://github.com/fw876/helloworld.git#d' \
-    -e '\#src-git passwall_packages https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git;main#d' \
-    -e '\#src-git passwall2 https://github.com/Openwrt-Passwall/openwrt-passwall2.git;main#d' \
-    "$file"
-
-  app_feed "$ENABLE_PASSWALL2" "src-git passwall_packages https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git;main" "$file"
-  app_feed "$ENABLE_PASSWALL2" "src-git passwall2 https://github.com/Openwrt-Passwall/openwrt-passwall2.git;main" "$file"
-  app_feed "$ENABLE_SSR_PLUS" "src-git helloworld https://github.com/fw876/helloworld.git" "$file"
-}
-
-clone_update() {
-  local repo="$1"
-  local dest="$2"
-  local branch="$3"
-  rm -rf "$dest"
-  if [ -n "$branch" ]; then
-    git clone --depth 1 -b "$branch" "$repo" "$dest"
-  else
-    git clone --depth 1 "$repo" "$dest"
-  fi
+  router_configure_feeds "$file"
 }
 
 patch_packages() {
@@ -102,24 +69,10 @@ patch_packages() {
 
 }
 
-disable_autosamba() {
-  # LEDE x86 selects autosamba by default; remove it when samba4 is selected.
-  if grep -Eq '^(CONFIG_PACKAGE_luci-app-samba4|CONFIG_PACKAGE_samba4-server)=y' .config 2>/dev/null || [ "$STAGE" = "pre" ]; then
-    sed -i -E 's/(^|[[:space:]])autosamba([[:space:]]|$)/ /g' target/linux/x86/Makefile 2>/dev/null || true
-    rm -rf package/lean/autosamba
-    if [ -f .config ]; then
-      sed -i \
-        -e '/CONFIG_DEFAULT_autosamba/d' \
-        -e '/CONFIG_PACKAGE_autosamba/d' \
-        -e '/CONFIG_PACKAGE_autosamba_INCLUDE_/d' \
-        .config || true
-      cat >> .config <<'EOF'
-# CONFIG_DEFAULT_autosamba is not set
-# CONFIG_PACKAGE_autosamba is not set
-EOF
-    fi
-    echo "Disabled LEDE autosamba default package for samba4 builds."
-  fi
+disable_nas_defaults() {
+  # LEDE can select file-sharing servers through target defaults.
+  sed -i -E ':again; s/(^|[[:blank:]])(autosamba|luci-app-vsftpd|vsftpd)([[:blank:]]|$)/\1\3/; t again' \
+    include/target.mk target/linux/x86/Makefile
 }
 
 kcptun_package() {
@@ -224,35 +177,28 @@ disabled_packages() {
       -e '/CONFIG_PACKAGE_mosdns=y/d' \
       .config || true
   fi
-  [ "$ENABLE_PASSWALL2" = "true" ] || sed -i '/CONFIG_PACKAGE_luci-app-passwall2/d;/CONFIG_PACKAGE_luci-i18n-passwall2-zh-cn/d' .config || true
-  [ "$ENABLE_HYSTERIA" = "true" ] || sed -i '/CONFIG_PACKAGE_hysteria=y/d;/CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_Hysteria=y/d' .config || true
+  [ "$ENABLE_PASSWALL" = "true" ] || sed -i '/CONFIG_PACKAGE_luci-app-passwall\([=_ ]\)/d;/CONFIG_PACKAGE_luci-i18n-passwall-zh-cn/d' .config || true
+  [ "$ENABLE_HYSTERIA" = "true" ] || sed -i '/CONFIG_PACKAGE_hysteria=y/d;/CONFIG_PACKAGE_luci-app-passwall_INCLUDE_Hysteria=y/d' .config || true
   if [ "$ENABLE_NAIVEPROXY" != "true" ]; then
-    sed -i '/CONFIG_PACKAGE_naiveproxy=y/d;/CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_NaiveProxy=y/d' .config || true
+    sed -i '/CONFIG_PACKAGE_naiveproxy=y/d;/CONFIG_PACKAGE_luci-app-passwall_INCLUDE_NaiveProxy=y/d' .config || true
   fi
   if [ "$ENABLE_SINGBOX" != "true" ]; then
     sed -i \
       -e '/CONFIG_PACKAGE_sing-box/d' \
-      -e '/CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_SingBox/d' \
-      -e '/CONFIG_PACKAGE_luci-app-passwall2_Basic_Core_/d' \
+      -e '/CONFIG_PACKAGE_luci-app-passwall_INCLUDE_SingBox/d' \
       -e '/CONFIG_SING_BOX_BUILD_/d' \
       .config || true
     cat >> .config <<'EOF'
-CONFIG_PACKAGE_luci-app-passwall2_Basic_Core_Xray=y
-# CONFIG_PACKAGE_luci-app-passwall2_Basic_Core_SingBox is not set
-# CONFIG_PACKAGE_luci-app-passwall2_Basic_Core_All is not set
+# CONFIG_PACKAGE_luci-app-passwall_INCLUDE_SingBox is not set
 # CONFIG_PACKAGE_sing-box is not set
 EOF
   fi
   if [ "$ENABLE_TUIC_CLIENT" != "true" ]; then
-    sed -i '/CONFIG_PACKAGE_tuic-client=y/d;/CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_tuic_client=y/d' .config || true
+    sed -i '/CONFIG_PACKAGE_tuic-client=y/d' .config || true
   fi
-  if [ "$ENABLE_PASSWALL2_LEGACY_EXTRAS" != "true" ]; then
+  if [ "$ENABLE_PASSWALL_LEGACY_EXTRAS" != "true" ]; then
     sed -i \
-      -e '/CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_Haproxy=y/d' \
-      -e '/CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_Shadowsocks_Rust_Client=y/d' \
-      -e '/CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_Shadowsocks_Rust_Server=y/d' \
-      -e '/CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_Simple_Obfs=y/d' \
-      -e '/CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_V2ray_Plugin=y/d' \
+      -e 's/^\(CONFIG_PACKAGE_luci-app-passwall_INCLUDE_\(Haproxy\|Shadowsocks_Rust_Client\|Shadowsocks_Rust_Server\|Simple_Obfs\|V2ray_Plugin\)\)=y$/# \1 is not set/' \
       -e '/CONFIG_PACKAGE_haproxy=y/d' \
       -e '/CONFIG_PACKAGE_shadowsocks-rust-/d' \
       -e '/CONFIG_PACKAGE_simple-obfs-/d' \
@@ -265,7 +211,7 @@ EOF
 pre_stage() {
   cd "$OPENWRT_DIR"
 
-  disable_autosamba
+  disable_nas_defaults
   configure_feeds feeds.conf.default
   # elfutils regenerates its parser in maintainer mode. Its generators and
   # their installed data must be ready before a parallel tools build starts.
@@ -273,14 +219,8 @@ pre_stage() {
   gettext_gnulib
   router_pre
 
-  mkdir -p package/custom
-
   if [ "$ENABLE_KCPTUN" = "true" ]; then
     kcptun_package
-  fi
-
-  if [ "$ENABLE_THEME_EDGE" = "true" ]; then
-    clone_update "https://github.com/kiddin9/luci-theme-edge.git" "package/custom/luci-theme-edge" "master"
   fi
 }
 
@@ -321,7 +261,6 @@ post_stage() {
   patch_packages
   system_defaults
   disabled_packages
-  disable_autosamba
   luci_defaults
   luci_runtime
 }

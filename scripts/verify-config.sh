@@ -4,15 +4,23 @@ set -eu
 required=(
   IPV6 KERNEL_IPV6 GRUB_IMAGES GRUB_EFI_IMAGES
   TARGET_ROOTFS_SQUASHFS
-  PACKAGE_luci-app-openclash PACKAGE_luci-app-passwall2
+  PACKAGE_luci-app-openclash PACKAGE_luci-app-passwall
+  PACKAGE_luci-app-clashoo PACKAGE_clashoo
   PACKAGE_luci-app-ssr-plus PACKAGE_xray-core PACKAGE_sing-box
   PACKAGE_luci-app-filemanager
   PACKAGE_luci-compat PACKAGE_luci-mod-network PACKAGE_luci-app-firewall
-  PACKAGE_luci-theme-edge PACKAGE_luci-theme-bootstrap PACKAGE_luci-lua-runtime
+  PACKAGE_luci-theme-edge PACKAGE_luci-theme-vantage PACKAGE_luci-theme-bootstrap
+  PACKAGE_luci-lua-runtime PACKAGE_ucode-mod-lua
   PACKAGE_luci-proto-ipv6 PACKAGE_luci-proto-ppp
   PACKAGE_ppp-mod-pppoe PACKAGE_odhcp6c PACKAGE_odhcpd-ipv6only
   PACKAGE_dnsmasq-full PACKAGE_dnsmasq_full_dhcp PACKAGE_dnsmasq_full_dhcpv6
-  PACKAGE_dnsmasq_full_dnssec PACKAGE_kmod-tun PACKAGE_ip-full
+  PACKAGE_dnsmasq_full_dnssec PACKAGE_dnsmasq_full_nftset PACKAGE_kmod-tun PACKAGE_ip-full
+  PACKAGE_firewall4 PACKAGE_kmod-nft-tproxy PACKAGE_kmod-nft-socket PACKAGE_kmod-nft-nat
+)
+excluded=(
+  firewall dnsmasq dnsmasq-dhcpv6 odhcpd mihomo clash-meta
+  luci-app-passwall2 luci-app-homeproxy autosamba luci-app-samba luci-app-samba4 samba36-server samba4-server
+  luci-app-ksmbd ksmbd-server luci-app-nfs nfs-kernel-server luci-app-vsftpd vsftpd vsftpd-tls
 )
 failed=0
 # A missing Kconfig symbol is silently discarded by defconfig. Check every
@@ -38,42 +46,18 @@ for option in "${required[@]}"; do
     failed=1
   fi
 done
-for package in dnsmasq dnsmasq-dhcpv6 odhcpd; do
+for package in "${excluded[@]}"; do
   if grep -qxF "CONFIG_PACKAGE_${package}=y" .config; then
-    echo "Conflicting DHCP/DNS package: $package" >&2
+    echo "Unexpected package in the router configuration: $package" >&2
     failed=1
   fi
 done
-if grep -qxF 'CONFIG_PACKAGE_firewall4=y' .config; then
-  backend=Nftables
-  dns_set=nftset
-  if grep -qxF 'CONFIG_PACKAGE_firewall=y' .config; then
-    echo "Conflicting firewall and firewall4 packages" >&2
-    failed=1
-  fi
-else
-  backend=Iptables
-  dns_set=ipset
-  grep -qxF 'CONFIG_PACKAGE_firewall=y' .config || failed=1
-fi
-for app in passwall2 ssr-plus; do
-  grep -qxF "CONFIG_PACKAGE_luci-app-${app}_${backend}_Transparent_Proxy=y" .config || {
-    echo "$app backend does not match $backend" >&2
+for app in passwall ssr-plus; do
+  grep -qxF "CONFIG_PACKAGE_luci-app-${app}_Nftables_Transparent_Proxy=y" .config || {
+    echo "$app requires the nftables backend" >&2
     failed=1
   }
 done
-if [ "$backend" = Nftables ]; then
-  required_backend=(kmod-nft-tproxy kmod-nft-socket kmod-nft-nat)
-else
-  required_backend=(ipset iptables-mod-tproxy ip6tables-mod-nat kmod-ipt-nat)
-fi
-for package in "${required_backend[@]}"; do
-  grep -qxF "CONFIG_PACKAGE_${package}=y" .config || {
-    echo "Missing transparent proxy dependency: $package" >&2
-    failed=1
-  }
-done
-grep -qxF "CONFIG_PACKAGE_dnsmasq_full_${dns_set}=y" .config || failed=1
 test -s files/etc/openclash/core/clash_meta || failed=1
 [ "$failed" = 0 ] || exit 1
-echo "Router, IPv6, DNS/DHCP and proxy configuration verified ($backend)."
+echo "Router, IPv6, DNS/DHCP and nftables proxy configuration verified."

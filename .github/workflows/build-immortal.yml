@@ -37,9 +37,35 @@ on:
         options:
           - "true"
           - "false"
+  workflow_call:
+    inputs:
+      variant:
+        type: string
+        required: true
+      repo_url:
+        type: string
+        required: true
+      repo_branch:
+        type: string
+        required: true
+      config_file:
+        type: string
+        required: true
+      script_file:
+        type: string
+        required: true
+      artifact_name:
+        type: string
+        required: true
+      compile_threads:
+        type: string
+        required: true
+      upload_release:
+        type: string
+        required: true
 
 concurrency:
-  group: openwrt-immortal-${{ github.ref }}
+  group: openwrt-${{ inputs.variant || 'immortal' }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -49,13 +75,15 @@ jobs:
       contents: write
 
     env:
-      REPO_URL: ${{ github.event.inputs.repo_url || 'https://github.com/immortalwrt/immortalwrt' }}
-      REPO_BRANCH: ${{ github.event.inputs.repo_branch || 'openwrt-24.10' }}
-      CONFIG_FILE: ${{ github.event.inputs.config_file || 'config/immortal_x86_64.config' }}
-      SCRIPT_FILE: ${{ github.event.inputs.script_file || 'scripts/diy-immortal.sh' }}
-      ARTIFACT_NAME: ${{ github.event.inputs.artifact_name || 'ImmortalWrt_x86_64_Modern' }}
-      UPLOAD_RELEASE: ${{ github.event.inputs.upload_release || 'true' }}
-      COMPILE_THREADS: ${{ github.event.inputs.compile_threads || '2' }}
+      REPO_URL: ${{ inputs.repo_url || 'https://github.com/immortalwrt/immortalwrt' }}
+      REPO_BRANCH: ${{ inputs.repo_branch || 'openwrt-24.10' }}
+      CONFIG_FILE: ${{ inputs.config_file || 'config/immortal_x86_64.config' }}
+      SCRIPT_FILE: ${{ inputs.script_file || 'scripts/diy-immortal.sh' }}
+      ARTIFACT_NAME: ${{ inputs.artifact_name || 'ImmortalWrt_x86_64_Modern' }}
+      UPLOAD_RELEASE: ${{ inputs.upload_release || 'true' }}
+      COMPILE_THREADS: ${{ inputs.compile_threads || '2' }}
+      FIRMWARE_VARIANT: ${{ inputs.variant || 'immortal' }}
+      ROUTER_HOSTNAME: ${{ inputs.variant == 'openwrt' && 'OpenWrt' || 'ImmortalWrt' }}
       TZ: Asia/Shanghai
 
     steps:
@@ -114,9 +142,9 @@ jobs:
           path: |
             openwrt/dl
             openwrt/.ccache
-          key: ${{ runner.os }}-immortal-${{ env.REPO_BRANCH }}-${{ hashFiles('config/*.config', 'scripts/**', 'patches/**', '.github/workflows/build-immortal.yml') }}
+          key: ${{ runner.os }}-${{ env.FIRMWARE_VARIANT }}-${{ env.REPO_BRANCH }}-${{ hashFiles(env.CONFIG_FILE, 'scripts/**', 'patches/**', '.github/workflows/build-immortal.yml', '.github/workflows/build-openwrt.yml') }}
           restore-keys: |
-            ${{ runner.os }}-immortal-${{ env.REPO_BRANCH }}-
+            ${{ runner.os }}-${{ env.FIRMWARE_VARIANT }}-${{ env.REPO_BRANCH }}-
 
       - name: 执行预处理脚本
         env:
@@ -140,7 +168,7 @@ jobs:
           make defconfig
           bash "$GITHUB_WORKSPACE/scripts/verify-config.sh"
           echo "Selected proxy packages after defconfig:"
-          grep -E '^(CONFIG_PACKAGE_(luci-app-ssr-plus|luci-i18n-ssr-plus|luci-app-passwall|luci-app-passwall2|luci-app-homeproxy|luci-i18n-homeproxy|xray-core|v2ray-core|mosdns|shadowsocks-libev|shadowsocksr-libev|shadowsocks-rust|hysteria|tuic-client|naiveproxy|kcptun|trojan|sing-box|firewall4|kmod-nft-tproxy|ucode-mod-digest)=y|CONFIG_PACKAGE_luci-app-(ssr-plus|passwall2)_INCLUDE_|CONFIG_PACKAGE_luci-app-passwall2_Basic_Core_)' .config || true
+          grep -E '^CONFIG_PACKAGE_((luci-app-(ssr-plus|passwall|clashoo)|clashoo|xray-core|v2ray-core|mosdns|shadowsocks-libev|shadowsocksr-libev|shadowsocks-rust|hysteria|tuic-client|naiveproxy|kcptun|trojan|sing-box|firewall4|kmod-nft-tproxy|ucode-mod-digest)=y|luci-app-(ssr-plus|passwall)_(INCLUDE_|Nftables_))' .config || true
 
       - name: 清除 Go module 缓存
         working-directory: ./openwrt
@@ -189,7 +217,7 @@ jobs:
           cp validation.log failure-logs/validation.log || true
           cp openwrt/bin/targets/x86/64/*.manifest failure-logs/ || true
           {
-            echo "### ImmortalWrt build failure summary"
+            echo "### $ARTIFACT_NAME build failure summary"
             echo
             echo '```text'
             if [ -f build.log ]; then
@@ -247,7 +275,7 @@ jobs:
           find "$firmware_dir" -type f | sort
           test "$(find "$firmware_dir" -type f | wc -l)" -gt 0
           echo "firmware_dir=$firmware_dir" >> "$GITHUB_OUTPUT"
-          echo "release_tag=immortal-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
+          echo "release_tag=${FIRMWARE_VARIANT}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
 
       - name: 保存源码版本与构建配置
         run: |
@@ -296,3 +324,4 @@ jobs:
             构建记录：${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
             源码：${{ env.REPO_URL }}（${{ env.REPO_BRANCH }}）
             固件已通过镜像和软件包清单校验，校验和见 SHA256SUMS。
+            [固件更新日志](${{ github.server_url }}/${{ github.repository }}/blob/${{ github.sha }}/CHANGELOG.md)

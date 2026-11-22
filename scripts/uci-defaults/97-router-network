@@ -34,10 +34,12 @@ uci set dhcp.@dnsmasq[0].filter_aaaa='0'
 uci commit network
 uci commit dhcp
 
-# Configure a subscription before enabling either transparent proxy.
+# Configure a subscription before enabling a transparent proxy.
 uci -q set openclash.config.enable='0'
 uci -q commit openclash
-uci -q set passwall2.@global[0].enabled='0'
-uci -q commit passwall2
+uci -q set clashoo.config.enable='0'
+uci -q commit clashoo
+uci -q set passwall.@global[0].enabled='0'
+uci -q commit passwall
 touch /etc/config/.router-network-initialized
 exit 0

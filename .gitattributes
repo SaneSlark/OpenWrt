@@ -4,6 +4,6 @@
 *.config text eol=lf
 *.md text eol=lf
 *.py text eol=lf
-# Nested diffs need literal spaces on empty context lines.
-*.patch text eol=lf whitespace=-blank-at-eol
+# Nested diffs use a literal space before context lines, including empty and tab-indented lines.
+*.patch text eol=lf whitespace=-blank-at-eol,-space-before-tab
 scripts/uci-defaults/* text eol=lf

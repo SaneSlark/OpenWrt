@@ -1,0 +1,62 @@
+diff --git a/Makefile b/Makefile
+--- a/Makefile
++++ b/Makefile
+@@ -7,6 +7,6 @@
+ include $(TOPDIR)/rules.mk
+ 
+ LUCI_TITLE:=Edge Theme
+-LUCI_DEPENDS:=+curl
++LUCI_DEPENDS:=+curl +luci-compat +luci-lua-runtime
+ 
+ PKG_LICENSE:=Apache-2.0
+diff --git a/luasrc/view/header_login.htm b/luasrc/view/header_login.htm
+--- a/luasrc/view/header_login.htm
++++ b/luasrc/view/header_login.htm
+@@ -9,11 +9,11 @@
+ 		luci.dispatcher.context.template_header_sent = true
+ 	end
+ 
+-	local applyconf = luci.config and luci.config.apply
++	local applyconf = L.config.apply
++	local mainconf = L.config.main
+ %>
+-<script type="text/javascript" src="<%=resource%>/promis.min.js?v=git-20.186.82389-282dbf8"></script>
+-<script type="text/javascript" src="<%=resource%>/luci.js?v=git-20.186.82389-282dbf8"></script>
++<script type="text/javascript" src="<%=resource%>/luci.js"></script>
+ <script type="text/javascript">
+ 	L = new LuCI(<%= luci.http.write_json({
+ 		token          = token,
+ 		media          = media,
+@@ -24,10 +24,10 @@
+ 		requestpath    = luci.dispatcher.context.requestpath,
+ 		dispatchpath   = luci.dispatcher.context.path,
+-		pollinterval   = luci.config.main.pollinterval or 5,
+-		ubuspath       = luci.config.main.ubuspath or '/ubus/',
++		pollinterval   = tonumber(mainconf.pollinterval) or 5,
++		ubuspath       = mainconf.ubuspath or '/ubus/',
+ 		sessionid      = luci.dispatcher.context.authsession,
+-		nodespec       = luci.dispatcher.context.dispatched,
++		nodespec       = L.dispatched,
+ 		apply_rollback = math.max(applyconf and applyconf.rollback or 30, 30),
+ 		apply_holdoff  = math.max(applyconf and applyconf.holdoff or 4, 1),
+ 		apply_timeout  = math.max(applyconf and applyconf.timeout or 5, 1),
+ 		apply_display  = math.max(applyconf and applyconf.display or 1.5, 1),
+diff --git a/luasrc/view/themes/edge/header.htm b/luasrc/view/themes/edge/header.htm
+--- a/luasrc/view/themes/edge/header.htm
++++ b/luasrc/view/themes/edge/header.htm
+@@ -66,5 +66,4 @@
+ 	<% end -%>
+ 	<script src="<%=url('admin/translations', luci.i18n.context.lang)%>"></script>
+ 	<script src="<%=resource%>/cbi.js"></script>
+-	<script src="<%=resource%>/luci.js"></script>
+ 	<script src="<%=media%>/js/jquery.min.js"></script>
+diff --git a/luasrc/view/themes/edge/header_login.htm b/luasrc/view/themes/edge/header_login.htm
+--- a/luasrc/view/themes/edge/header_login.htm
++++ b/luasrc/view/themes/edge/header_login.htm
+@@ -68,6 +68,5 @@
+ 	<% end -%>
+ 	<script src="<%=url('admin/translations', luci.i18n.context.lang)%>"></script>
+ 	<script src="<%=resource%>/cbi.js"></script>
+-	<script src="<%=resource%>/luci.js"></script>
+ 	<script src="<%=media%>/js/jquery.min.js"></script>
+ 	<script type="text/javascript">//<![CDATA[

@@ -2,7 +2,7 @@
 set -e
 
 # ===========================================================
-# ImmortalWrt x86_64 自定义脚本
+# ImmortalWrt 和 OpenWrt 官方源码的 x86_64 自定义脚本
 # STAGE=pre  : 添加自定义 feeds 和主题包
 # STAGE=post : 复制 .config 后调整默认配置
 # ===========================================================
@@ -16,13 +16,12 @@ source "${WORKDIR}/scripts/router-common.sh"
 DEFAULT_THEME="edge"
 LAN_IP="192.168.2.1"
 LAN_NETMASK="255.255.255.0"
-HOSTNAME="ImmortalWrt"
+HOSTNAME="${ROUTER_HOSTNAME:-ImmortalWrt}"
 TIMEZONE="CST-8"
 ZONENAME="Asia/Shanghai"
 
 ENABLE_THEME_EDGE="true"
-ENABLE_PASSWALL2="true"
-ENABLE_HOMEPROXY="true"
+ENABLE_PASSWALL="true"
 ENABLE_SSR_PLUS="true"
 ENABLE_SSR_PLUS_LEGACY_EXTRAS="true"
 ENABLE_HYSTERIA="true"
@@ -31,45 +30,6 @@ ENABLE_FILETRANSFER="true"
 ENABLE_VLMCSD="true"
 ENABLE_KCPTUN="true"
 # ============================================
-
-app_feed() {
-  local enabled="$1"
-  local line="$2"
-  local file="$3"
-
-  [ "$enabled" = "true" ] || return 0
-  grep -Fqx "$line" "$file" || echo "$line" >> "$file"
-}
-
-configure_feeds() {
-  local file="$1"
-
-  # 保持自定义 feeds 的确定性顺序，重复包以第一个出现的 feed 为准。
-  sed -i \
-    -e '\#src-git helloworld https://github.com/fw876/helloworld.git#d' \
-    -e '\#src-git passwall_packages https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git;main#d' \
-    -e '\#src-git passwall2 https://github.com/Openwrt-Passwall/openwrt-passwall2.git;main#d' \
-    -e '\#src-git homeproxy https://github.com/immortalwrt/homeproxy.git;master#d' \
-    "$file"
-
-  app_feed "$ENABLE_PASSWALL2" "src-git passwall_packages https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git;main" "$file"
-  app_feed "$ENABLE_PASSWALL2" "src-git passwall2 https://github.com/Openwrt-Passwall/openwrt-passwall2.git;main" "$file"
-  app_feed "$ENABLE_SSR_PLUS" "src-git helloworld https://github.com/fw876/helloworld.git" "$file"
-  app_feed "$ENABLE_HOMEPROXY" "src-git homeproxy https://github.com/immortalwrt/homeproxy.git;master" "$file"
-}
-
-clone_update() {
-  local repo="$1"
-  local dest="$2"
-  local branch="$3"
-
-  rm -rf "$dest"
-  if [ -n "$branch" ]; then
-    git clone --depth 1 -b "$branch" "$repo" "$dest"
-  else
-    git clone --depth 1 "$repo" "$dest"
-  fi
-}
 
 module_paths() {
   local makefile
@@ -86,13 +46,8 @@ module_paths() {
 pre_stage() {
   cd "$OPENWRT_DIR"
 
-  configure_feeds feeds.conf.default
+  router_configure_feeds feeds.conf.default
   router_pre
-  mkdir -p package/custom
-
-  if [ "$ENABLE_THEME_EDGE" = "true" ]; then
-    clone_update "https://github.com/kiddin9/luci-theme-edge.git" "package/custom/luci-theme-edge" "master"
-  fi
 }
 
 post_stage() {
@@ -137,10 +92,9 @@ EOF
       -e '/CONFIG_PACKAGE_luci-app-ssr-plus_INCLUDE_Redsocks2=y/d' \
       .config || true
   fi
-  [ "$ENABLE_PASSWALL2" = "true" ] || sed -i '/CONFIG_PACKAGE_luci-app-passwall2/d;/CONFIG_PACKAGE_luci-i18n-passwall2-zh-cn/d' .config || true
-  [ "$ENABLE_HOMEPROXY" = "true" ] || sed -i '/CONFIG_PACKAGE_luci-app-homeproxy/d;/CONFIG_PACKAGE_luci-i18n-homeproxy-zh-cn/d' .config || true
-  [ "$ENABLE_HYSTERIA" = "true" ] || sed -i '/CONFIG_PACKAGE_hysteria=y/d;/CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_Hysteria=y/d' .config || true
-  [ "$ENABLE_NAIVEPROXY" = "true" ] || sed -i '/CONFIG_PACKAGE_naiveproxy=y/d;/CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_NaiveProxy=y/d' .config || true
+  [ "$ENABLE_PASSWALL" = "true" ] || sed -i '/CONFIG_PACKAGE_luci-app-passwall\([=_ ]\)/d;/CONFIG_PACKAGE_luci-i18n-passwall-zh-cn/d' .config || true
+  [ "$ENABLE_HYSTERIA" = "true" ] || sed -i '/CONFIG_PACKAGE_hysteria=y/d;/CONFIG_PACKAGE_luci-app-passwall_INCLUDE_Hysteria=y/d' .config || true
+  [ "$ENABLE_NAIVEPROXY" = "true" ] || sed -i '/CONFIG_PACKAGE_naiveproxy=y/d;/CONFIG_PACKAGE_luci-app-passwall_INCLUDE_NaiveProxy=y/d' .config || true
   [ "$ENABLE_FILETRANSFER" = "true" ] || sed -i '/CONFIG_PACKAGE_luci-app-filemanager=y/d;/CONFIG_PACKAGE_luci-i18n-filemanager-zh-cn=y/d' .config || true
   [ "$ENABLE_VLMCSD" = "true" ] || sed -i '/CONFIG_PACKAGE_luci-app-vlmcsd=y/d;/CONFIG_PACKAGE_luci-i18n-vlmcsd-zh-cn=y/d' .config || true
   [ "$ENABLE_KCPTUN" = "true" ] || sed -i '/CONFIG_PACKAGE_kcptun-client=y/d' .config || true
