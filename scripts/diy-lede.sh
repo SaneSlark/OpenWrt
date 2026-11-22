@@ -290,10 +290,16 @@ gettext_gnulib() {
   local revision="c99c8d491850dc3a6e0b8604a2729d8bc5c0eff1"
   local dest=".gettext-gnulib"
   local makefile="package/libs/gettext-full/Makefile"
-  grep -qxF 'PKG_VERSION:=0.22.5' "$makefile" || {
-    echo "gettext version changed; review the private gnulib compatibility hook." >&2
+  local version
+  version="$(sed -n 's/^PKG_VERSION:=//p' "$makefile")"
+  if [ -z "$version" ]; then
+    echo "Could not read the gettext version from $makefile." >&2
     return 1
-  }
+  fi
+  if [ "$version" != "0.22.5" ]; then
+    echo "Using upstream gnulib for gettext $version."
+    return 0
+  fi
   if [ ! -d "$dest/.git" ]; then
     git init "$dest"
     git -C "$dest" remote add origin https://github.com/coreutils/gnulib.git

@@ -1,6 +1,8 @@
 name: OpenWrt lede Build
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       repo_url:
@@ -272,10 +274,11 @@ jobs:
 
       - name: 保存源码版本与构建配置
         run: |
-          cp openwrt/.config firmware/build.config
-          cp openwrt/feeds.conf.default firmware/feeds.conf.default
-          cp openwrt/openclash-core-version.txt firmware/
-          cp openwrt/bin/targets/x86/64/*.manifest firmware/
+          mkdir -p firmware/metadata
+          cp openwrt/.config firmware/metadata/build.config
+          cp openwrt/feeds.conf.default firmware/metadata/
+          cp openwrt/openclash-core-version.txt firmware/metadata/
+          cp openwrt/bin/targets/x86/64/*.manifest firmware/metadata/
           {
             echo "Source: $REPO_URL ($REPO_BRANCH)"
             git -C openwrt rev-parse HEAD
@@ -283,26 +286,34 @@ jobs:
               [ -d "$source/.git" ] || continue
               echo "$source $(git -C "$source" rev-parse HEAD)"
             done
-          } > firmware/source-versions.txt
-          cd firmware
-          sha256sum -- * > SHA256SUMS
+          } > firmware/metadata/source-versions.txt
+
+      - name: 生成固件校验和
+        working-directory: firmware
+        run: |
+          shopt -s nullglob
+          images=( *.{img,img.gz,iso,qcow2,vdi,vmdk} )
+          test "${#images[@]}" -gt 0
+          sha256sum -- "${images[@]}" > SHA256SUMS
 
       - name: 上传固件
         uses: actions/upload-artifact@v6
         with:
           name: ${{ env.ARTIFACT_NAME }}
-          path: ${{ steps.collect.outputs.firmware_dir }}/*
+          path: ${{ steps.collect.outputs.firmware_dir }}
           if-no-files-found: error
           retention-days: 7
 
       - name: 创建 GitHub Release
-        if: env.UPLOAD_RELEASE == 'true'
+        if: success() && steps.compile.outcome == 'success' && env.UPLOAD_RELEASE == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.collect.outputs.release_tag }}
           target_commitish: ${{ github.sha }}
           name: ${{ env.ARTIFACT_NAME }} ${{ steps.collect.outputs.release_tag }}
-          files: ${{ steps.collect.outputs.firmware_dir }}/*
+          files: |
+            ${{ steps.collect.outputs.firmware_dir }}/*.{img,img.gz,iso,qcow2,vdi,vmdk}
+            ${{ steps.collect.outputs.firmware_dir }}/SHA256SUMS
           fail_on_unmatched_files: true
           body: |
             构建记录：${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

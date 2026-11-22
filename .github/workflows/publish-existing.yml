@@ -29,7 +29,11 @@ jobs:
           [[ "$RUN_ID" =~ ^[0-9]+$ ]]
           gh api "repos/$GH_REPO/actions/runs/$RUN_ID" > run.json
           test "$(jq -r .conclusion run.json)" = success
-          test "$(jq -r .event run.json)" = workflow_dispatch
+          event="$(jq -r .event run.json)"
+          case "$event" in
+            push|workflow_dispatch) ;;
+            *) echo "Unsupported source event: $event" >&2; exit 1 ;;
+          esac
           workflow="$(jq -r .path run.json)"
           case "$workflow" in
             .github/workflows/build-lede.yml) variant=lede ;;
@@ -50,12 +54,13 @@ jobs:
         run: |
           gh run download "$RUN_ID" --name "$ARTIFACT_NAME" --dir firmware
           cd firmware
-          test -s build.config
-          test -s source-versions.txt
           test -s SHA256SUMS
           sha256sum --check --strict SHA256SUMS
           compgen -G '*combined.img.gz' >/dev/null
           compgen -G '*combined-efi.img.gz' >/dev/null
+          shopt -s nullglob
+          images=( *.{img,img.gz,iso,qcow2,vdi,vmdk} )
+          sha256sum -- "${images[@]}" > SHA256SUMS
 
       - name: 补发 GitHub Release
         uses: softprops/action-gh-release@v2
@@ -63,7 +68,9 @@ jobs:
           tag_name: ${{ steps.source.outputs.tag }}
           target_commitish: ${{ steps.source.outputs.sha }}
           name: ${{ steps.source.outputs.artifact_name }} ${{ steps.source.outputs.tag }}
-          files: firmware/*
+          files: |
+            firmware/*.{img,img.gz,iso,qcow2,vdi,vmdk}
+            firmware/SHA256SUMS
           fail_on_unmatched_files: true
           body: |
             补发已成功构建并通过镜像校验的固件，无需重新编译。

@@ -4,7 +4,21 @@ import json
 from pathlib import Path
 import subprocess
 import sys
+from uuid import UUID
 import zlib
+
+
+EFI_SYSTEM_PARTITION = UUID("c12a7328-f81f-11d2-ba4b-00a0c93ec93b").bytes_le
+
+
+def verify_efi_partition_type(path, header):
+    sector_size = 512
+    if header[sector_size:sector_size + 8] != b"EFI PART":
+        raise SystemExit(f"{path.name}: GPT header missing from UEFI image")
+    entries_lba = int.from_bytes(header[sector_size + 72:sector_size + 80], "little")
+    first_entry = entries_lba * sector_size
+    if entries_lba < 2 or header[first_entry:first_entry + 16] != EFI_SYSTEM_PARTITION:
+        raise SystemExit(f"{path.name}: first GPT partition is not an EFI System Partition")
 
 
 def verify_image(path, fwtool):
@@ -13,6 +27,8 @@ def verify_image(path, fwtool):
     decoder = zlib.decompressobj(16 + zlib.MAX_WBITS)
     size = 0
     trailing = False
+    header = bytearray()
+    header_limit = 64 * 1024 if path.name.endswith("-efi.img.gz") else 0
     try:
         with path.open("rb") as stream:
             while chunk := stream.read(1024 * 1024):
@@ -21,7 +37,10 @@ def verify_image(path, fwtool):
                     break
                 pending = chunk
                 while pending and not decoder.eof:
-                    size += len(decoder.decompress(pending, 1024 * 1024))
+                    decoded = decoder.decompress(pending, 1024 * 1024)
+                    size += len(decoded)
+                    if len(header) < header_limit:
+                        header.extend(decoded[:header_limit - len(header)])
                     pending = decoder.unconsumed_tail
                 if decoder.unused_data:
                     trailing = True
@@ -32,6 +51,8 @@ def verify_image(path, fwtool):
         raise SystemExit(f"{path.name}: truncated gzip stream")
     if size < 16 * 1024 * 1024:
         raise SystemExit(f"Firmware image too small: {path}")
+    if header_limit:
+        verify_efi_partition_type(path, header)
     if trailing:
         if not fwtool.is_file():
             raise SystemExit(f"{path.name}: fwtool required to validate appended metadata")

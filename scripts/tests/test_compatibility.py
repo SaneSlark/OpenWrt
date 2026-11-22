@@ -6,6 +6,7 @@ import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
+from uuid import UUID
 
 SCRIPTS = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("firmware", SCRIPTS / "verify-firmware.py")
@@ -52,6 +53,20 @@ class ImageTests(unittest.TestCase):
         ]
         with patch.object(firmware.subprocess, "run", side_effect=responses):
             firmware.verify_image(self.image, fwtool)
+
+    def test_efi_image_partition_type(self):
+        image = self.root / "combined-efi.img.gz"
+        disk = bytearray(16 * 1024 * 1024)
+        disk[512:520] = b"EFI PART"
+        disk[584:592] = (2).to_bytes(8, "little")
+        disk[1024:1040] = UUID("0fc63daf-8483-4772-8e79-3d69d8477de4").bytes_le
+        image.write_bytes(gzip.compress(disk))
+        with self.assertRaisesRegex(SystemExit, "not an EFI System Partition"):
+            firmware.verify_image(image, self.root / "missing-fwtool")
+
+        disk[1024:1040] = UUID("c12a7328-f81f-11d2-ba4b-00a0c93ec93b").bytes_le
+        image.write_bytes(gzip.compress(disk))
+        firmware.verify_image(image, self.root / "missing-fwtool")
 
 
 class ManifestTests(unittest.TestCase):

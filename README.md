@@ -23,17 +23,15 @@
 
 ## 使用方法
 
-1. 将当前仓库推送到 GitHub。
-2. 打开仓库的 `Actions` 页面。
-3. 根据需要运行 `OpenWrt lede Build` 或 `OpenWrt Immortal Build`。
-4. 按需填写以下参数：
-   - `repo_url`：OpenWrt 源码仓库地址
-   - `repo_branch`：源码分支
-   - `config_file`：当前仓库中的配置文件路径
-   - `script_file`：当前仓库中的自定义脚本路径
-   - `artifact_name`：上传后的产物名称
-   - `compile_threads`：编译线程数，`0` 表示自动使用全部 CPU
-   - `upload_release`：是否同时创建 GitHub Release，默认 `true`；选择 `false` 时只上传 Actions Artifact
+推送到 `main` 后，`OpenWrt lede Build` 和 `OpenWrt Immortal Build` 会使用默认参数自动构建。也可以在仓库的 `Actions` 页面手动运行其中一个工作流，并按需填写参数。
+
+- `repo_url`：OpenWrt 源码仓库地址
+- `repo_branch`：源码分支
+- `config_file`：当前仓库中的配置文件路径
+- `script_file`：当前仓库中的自定义脚本路径
+- `artifact_name`：上传后的产物名称
+- `compile_threads`：编译线程数，`0` 表示自动使用全部 CPU
+- `upload_release`：是否同时创建 GitHub Release，默认 `true`；选择 `false` 时只上传 Actions Artifact
 
 ## 默认入口
 
@@ -77,15 +75,15 @@ OpenClash 和 PassWall2 默认关闭，导入订阅后选择一个启用。同�
 
 优先使用 `OpenWrt Immortal Build` 构建 24.10 固件。此前因为兼容问题回退过版本，因此保留 ImmortalWrt `openwrt-24.10` 和 LEDE 的 LuCI `openwrt-24.10` 分支，不自动升级到 25.12；LEDE 主源码仍跟随原来的 `master`，所以新内核与旧 LuCI 的组合也需要编译和实机验证。Edge 使用 `master` 分支的 Lua 模板，显式包含 `luci-compat`、`luci-lua-runtime`，同时保留 Bootstrap 备用主题。兼容库齐全不代表页面已通过实测。
 
-构建产物附带 `build.config`、`feeds.conf.default`、`source-versions.txt` 和 `openclash-core-version.txt`，方便核对实际源码和核心版本。此仓库保存构建配置，完整 OpenWrt 源码由 Actions 在构建时克隆。
+Actions 产物的 `metadata/` 目录保存 `build.config`、`feeds.conf.default`、固件软件包清单、`source-versions.txt` 和 `openclash-core-version.txt`，方便核对实际构建配置和版本。Release 只附带固件镜像和对应的 `SHA256SUMS`。完整 OpenWrt 源码由 Actions 在构建时克隆。
 
-工作流在 `make defconfig` 后检查必需配置；编译后检查 BIOS/UEFI 镜像是否存在、gzip 是否完整，以及实际固件 manifest 是否包含路由、IPv6、DNS/DHCP、OpenClash、PassWall2 和核心组件。上传时附带 manifest 与 `SHA256SUMS`。这些检查不代替实机测试：验收还需要确认 WAN 上网、LAN DHCP/静态租约、IPv4 NAT、IPv6 PD/RA/DHCPv6、AAAA 解析、防火墙和两个代理分别运行。构建失败会保留诊断日志；只有 Actions 实际编译通过才表示已成功产出固件。
+工作流在 `make defconfig` 后检查必需配置；编译后检查 BIOS/UEFI 镜像是否存在、gzip 是否完整，以及实际固件 manifest 是否包含路由、IPv6、DNS/DHCP、OpenClash、PassWall2 和核心组件。这些检查不代替实机测试：验收还需要确认 WAN 上网、LAN DHCP/静态租约、IPv4 NAT、IPv6 PD/RA/DHCPv6、AAAA 解析、防火墙和两个代理分别运行。编译或镜像校验失败时，Actions 保留诊断日志并跳过 Release 发布。
 
 默认情况下，两个方案都会把 LAN IP 改为 `192.168.2.1`，将 LuCI 默认语言设置为简体中文，并将默认主题设置为 `edge`。
 
 ## 已包含功能
 
-- 支持手动触发编译
+- 支持推送到 `main` 时自动编译，也可手动触发
 - 支持 `dl` 和 `ccache` 缓存
 - 自动上传编译产物
 - 编译及校验成功后默认创建 GitHub Release（可手动关闭）
@@ -95,7 +93,7 @@ OpenClash 和 PassWall2 默认关闭，导入订阅后选择一个启用。同�
 
 - 两套配置使用当前 24.10 LuCI 提供的 `luci-app-filemanager`，替代已移除的 `luci-app-filetransfer`。
 - 清理 SSR-Plus 上游已移除的旧配置开关。Hysteria、TUIC 等核心仍通过独立软件包选择；新版本 SSR 的协议支持以实际界面和 Xray/Mihomo 后端为准。
-- LEDE 的 gettext 0.22.5 单独使用固定的 gnulib `c99c8d491850dc3a6e0b8604a2729d8bc5c0eff1`（24.10 基线）。LEDE 其他工具仍使用其原有 gnulib；不再逐个修补旧 gettext 与新 gnulib 的差异。工作流先构建 gettext 主机工具，提前暴露兼容错误。
+- LEDE 的 gettext 0.22.5 使用固定的 gnulib `c99c8d491850dc3a6e0b8604a2729d8bc5c0eff1`（24.10 基线）。gettext 0.24.2 等其他版本使用上游源码指定的 gnulib。工作流先构建 gettext 主机工具，提前发现兼容问题。
 - LEDE 为 elfutils 补齐 Bison/Flex 构建依赖，确保解析器生成工具及数据安装完成后再编译。工具预编译遵守 `compile_threads`；并行失败时单线程重试。
 - 两套工作流分开恢复缓存；Release 标签使用方案名、Run ID 和重跑次数，避免同一分钟发布互相覆盖。
 - 固件清单必须包含且只包含一个防火墙后端，并检查透明代理所需的内核模块。

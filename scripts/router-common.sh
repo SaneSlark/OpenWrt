@@ -2,6 +2,7 @@
 # Shared build hooks. Source this file from the OpenWrt source directory.
 
 router_pre() {
+  router_fix_efi_partition_type
   # Keep the upstream package tree out of package/ to avoid duplicate scanning.
   if [ -d .openclash-source/.git ]; then
     git -C .openclash-source pull --ff-only
@@ -12,6 +13,24 @@ router_pre() {
   mkdir -p package/custom
   mkdir -p package/custom/luci-app-openclash
   cp -a .openclash-source/luci-app-openclash/. package/custom/luci-app-openclash/
+}
+
+router_fix_efi_partition_type() {
+  local makefile="target/linux/x86/image/Makefile"
+  local original='$(if $(filter $(1),efi),GUID="$(IMG_PART_DISKGUID)") $(SCRIPT_DIR)/gen_image_generic.sh'
+  local fixed='$(if $(filter $(1),efi),GUID="$(IMG_PART_DISKGUID)" KERNELPARTTYPE=ef) $(SCRIPT_DIR)/gen_image_generic.sh'
+
+  if grep -Fq "$fixed" "$makefile"; then
+    return 0
+  fi
+  # The first GPT partition contains FAT and EFI/BOOT/BOOTX64.EFI.
+  # ptgen maps ef to the EFI System Partition GUID without changing its PARTUUID.
+  if ! grep -Fq "$original" "$makefile"; then
+    echo "x86 image generation changed; could not set the EFI partition type." >&2
+    return 1
+  fi
+  sed -i 's/efi),GUID="$(IMG_PART_DISKGUID)") $(SCRIPT_DIR)\/gen_image_generic\.sh/efi),GUID="$(IMG_PART_DISKGUID)" KERNELPARTTYPE=ef) $(SCRIPT_DIR)\/gen_image_generic.sh/' "$makefile"
+  grep -Fq "$fixed" "$makefile"
 }
 
 router_post() {
