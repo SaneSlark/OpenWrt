@@ -12,7 +12,7 @@ diff --git a/Makefile b/Makefile
 diff --git a/luasrc/view/header_login.htm b/luasrc/view/header_login.htm
 --- a/luasrc/view/header_login.htm
 +++ b/luasrc/view/header_login.htm
-@@ -9,11 +9,11 @@
+@@ -10,12 +10,12 @@
  		luci.dispatcher.context.template_header_sent = true
  	end
  
@@ -20,6 +20,7 @@ diff --git a/luasrc/view/header_login.htm b/luasrc/view/header_login.htm
 +	local applyconf = L.config.apply
 +	local mainconf = L.config.main
  %>
+ 
 -<script type="text/javascript" src="<%=resource%>/promis.min.js?v=git-20.186.82389-282dbf8"></script>
 -<script type="text/javascript" src="<%=resource%>/luci.js?v=git-20.186.82389-282dbf8"></script>
 +<script type="text/javascript" src="<%=resource%>/luci.js"></script>
@@ -27,7 +28,7 @@ diff --git a/luasrc/view/header_login.htm b/luasrc/view/header_login.htm
  	L = new LuCI(<%= luci.http.write_json({
  		token          = token,
  		media          = media,
-@@ -24,10 +24,10 @@
+@@ -26,10 +26,10 @@
  		requestpath    = luci.dispatcher.context.requestpath,
  		dispatchpath   = luci.dispatcher.context.path,
 -		pollinterval   = luci.config.main.pollinterval or 5,
@@ -44,7 +45,7 @@ diff --git a/luasrc/view/header_login.htm b/luasrc/view/header_login.htm
 diff --git a/luasrc/view/themes/edge/header.htm b/luasrc/view/themes/edge/header.htm
 --- a/luasrc/view/themes/edge/header.htm
 +++ b/luasrc/view/themes/edge/header.htm
-@@ -66,5 +66,4 @@
+@@ -68,5 +68,4 @@
  	<% end -%>
  	<script src="<%=url('admin/translations', luci.i18n.context.lang)%>"></script>
  	<script src="<%=resource%>/cbi.js"></script>
@@ -53,7 +54,7 @@ diff --git a/luasrc/view/themes/edge/header.htm b/luasrc/view/themes/edge/header
 diff --git a/luasrc/view/themes/edge/header_login.htm b/luasrc/view/themes/edge/header_login.htm
 --- a/luasrc/view/themes/edge/header_login.htm
 +++ b/luasrc/view/themes/edge/header_login.htm
-@@ -68,6 +68,5 @@
+@@ -70,6 +70,5 @@
  	<% end -%>
  	<script src="<%=url('admin/translations', luci.i18n.context.lang)%>"></script>
  	<script src="<%=resource%>/cbi.js"></script>
