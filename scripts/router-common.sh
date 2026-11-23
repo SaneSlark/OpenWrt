@@ -6,7 +6,6 @@ router_configure_feeds() {
 
   # Keep the custom packages in a consistent order when rerunning preprocessing.
   sed -i -E '/^src-git[[:blank:]]+(passwall_packages|passwall2?|helloworld|homeproxy|clashoo|nikki|vantage)[[:blank:]]/d' "$file"
-  sed -i '1i src-git nikki https://github.com/nikkinikki-org/OpenWrt-nikki.git;main' "$file"
   if [ "$ENABLE_PASSWALL" = "true" ]; then
     # The forks also ship PassWall in LuCI. Install the official app first.
     sed -i '1i src-git passwall https://github.com/Openwrt-Passwall/openwrt-passwall.git;main' "$file"
@@ -33,9 +32,14 @@ router_pre() {
   mkdir -p package/custom/luci-app-openclash
   cp -a .openclash-source/luci-app-openclash/. package/custom/luci-app-openclash/
 
-  local argon="package/custom/luci-theme-argon"
-  rm -rf "$argon"
-  git clone --depth 1 --single-branch -b v3.1.4 https://github.com/jerrykuku/luci-theme-argon.git "$argon"
+  local bypass="package/custom/luci-app-bypass"
+  rm -rf "$bypass"
+  git clone --depth 1 --single-branch -b v2.1.6 https://github.com/kinmeic/luci-app-bypass.git "$bypass"
+  mkdir -p package/custom/bypasscore
+  cp "${WORKDIR}/packages/bypasscore/Makefile" package/custom/bypasscore/
+  # Upstream offers the mandatory core as a separate download.
+  sed -i 's/^LUCI_DEPENDS:=/LUCI_DEPENDS:=+bypasscore /' "$bypass/Makefile"
+  grep -q '^LUCI_DEPENDS:=+bypasscore ' "$bypass/Makefile"
 
   if [ "$ENABLE_THEME_EDGE" = "true" ]; then
     local theme="package/custom/luci-theme-edge"
@@ -65,14 +69,6 @@ router_fix_efi_partition_type() {
 
 router_post() {
   router_fix_host_tools
-  # Select Nikki's stable core by name to keep SSR-Plus out of Mihomo provider cycles.
-  local nikki="feeds/nikki/nikki/Makefile"
-  sed -i -E '/^[[:blank:]]*DEPENDS:=/s/\+mihomo([[:blank:]]|$)/+mihomo-meta\1/' "$nikki"
-  if ! grep -Eq '^[[:blank:]]*DEPENDS:=.*\+mihomo-meta([[:blank:]]|$)' "$nikki"; then
-    echo "Could not select the stable Mihomo package for Nikki." >&2
-    return 1
-  fi
-  sed -i '/^[[:blank:]]*PROVIDES:=mihomo$/d' feeds/nikki/mihomo-{meta,alpha}/Makefile
   if [ "${FIRMWARE_VARIANT:-}" = "openwrt" ] && [ -L package/feeds/luci/luci-app-weechat ]; then
     # The unused 25.12.6 app forms a dependency cycle with its two core variants.
     rm -f package/feeds/luci/luci-app-weechat
@@ -81,6 +77,26 @@ router_post() {
   cp "${WORKDIR}/scripts/uci-defaults/97-router-network" files/etc/uci-defaults/
   chmod +x files/etc/uci-defaults/97-router-network
   python3 "${WORKDIR}/scripts/openclash-core.py" "$PWD"
+}
+
+router_use_release_packages() {
+  local name dest
+  for name in "$@"; do
+    dest="package/custom/$name"
+    mkdir -p "$dest"
+    cp -a "${WORKDIR}/packages/$name/." "$dest/"
+    # Preserve the upstream standalone services alongside the new binaries.
+    if [ "$name" = xray-core ] || [ "$name" = sing-box ]; then
+      if [ -d "feeds/packages/net/$name/files" ]; then
+        cp -a "feeds/packages/net/$name/files" "$dest/"
+      fi
+    fi
+    if [ "$name" = naiveproxy ]; then
+      cp -a feeds/passwall_packages/naiveproxy/files "$dest/"
+    fi
+    # Leave one package recipe visible to OpenWrt's package scanner.
+    rm -f package/feeds/*/"$name"
+  done
 }
 
 router_fix_host_tools() {

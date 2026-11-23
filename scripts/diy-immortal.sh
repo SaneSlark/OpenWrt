@@ -54,6 +54,7 @@ post_stage() {
   cd "$OPENWRT_DIR"
 
   router_post
+  router_use_release_packages xray-core sing-box hysteria tuic-client naiveproxy
 
   module_paths
 

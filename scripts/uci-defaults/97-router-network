@@ -37,8 +37,6 @@ uci commit dhcp
 # Configure a subscription before enabling a transparent proxy.
 uci -q set openclash.config.enable='0'
 uci -q commit openclash
-uci -q set nikki.config.enabled='0'
-uci -q commit nikki
 uci -q set passwall.@global[0].enabled='0'
 uci -q commit passwall
 touch /etc/config/.router-network-initialized

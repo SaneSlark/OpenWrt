@@ -23,7 +23,7 @@ TIMEZONE="CST-8"
 ZONENAME="Asia/Shanghai"
 
 ENABLE_THEME_EDGE="true"
-# LEDE 方案包含 OpenClash、Nikki、SSR-Plus 和 PassWall。
+# LEDE 方案包含 OpenClash、Bypass、SSR-Plus 和 PassWall。
 ENABLE_FILETRANSFER="true"
 ENABLE_VLMCSD="true"
 ENABLE_SSR_PLUS="true"
@@ -257,6 +257,7 @@ post_stage() {
   cd "$OPENWRT_DIR"
 
   router_post
+  router_use_release_packages hysteria tuic-client naiveproxy
 
   patch_packages
   system_defaults

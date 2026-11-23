@@ -2,6 +2,9 @@
 
 ## 2026-11-23
 
+- 三套构建更新代理核心至 Xray 26.11.9、sing-box 1.14.4、Hysteria 2.14.0、TUIC Client 1.8.11 和 NaiveProxy 154.0.8037.49-5，并在发布前校验实际装入固件的版本。OpenClash 构建时继续获取上游最新稳定版 Mihomo。
+- 三套固件统一纳入 ESXi 的 VMXNET3 网卡驱动。发布前检查各文件系统的 BIOS/UEFI 镜像是否成对、BIOS MBR 是否含引导代码，并核对 PPPoE、LuCI 常用应用和 TUN 等软件包是否实际进入固件。
+- 三套固件用 `kinmeic/luci-app-bypass` v2.1.6 新架构替换 Nikki，内置 BypassCore v1.5.5、NaiveProxy 和 GeoIP/Geosite，并移除 Argon。
 - 三套固件用 Nikki 替换 Clashoo，选用 Nikki 上游的稳定版 `mihomo-meta`，并新增 Argon `v3.1.4` 主题。
 - 官方 OpenWrt 25.12.6 关闭 SSR-Plus 中依赖 `3proxy` 的可选 HTTP 代理组件，修复 `apk` 安装固件软件包时的缺包错误。配置校验会在编译前检查该依赖。
 

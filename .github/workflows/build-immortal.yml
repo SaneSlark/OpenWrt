@@ -142,7 +142,7 @@ jobs:
           path: |
             openwrt/dl
             openwrt/.ccache
-          key: ${{ runner.os }}-${{ env.FIRMWARE_VARIANT }}-${{ env.REPO_BRANCH }}-${{ hashFiles(env.CONFIG_FILE, 'scripts/**', 'patches/**', '.github/workflows/build-immortal.yml', '.github/workflows/build-openwrt.yml') }}
+          key: ${{ runner.os }}-${{ env.FIRMWARE_VARIANT }}-${{ env.REPO_BRANCH }}-${{ hashFiles(env.CONFIG_FILE, 'scripts/**', 'packages/**', 'patches/**', '.github/workflows/build-immortal.yml', '.github/workflows/build-openwrt.yml') }}
           restore-keys: |
             ${{ runner.os }}-${{ env.FIRMWARE_VARIANT }}-${{ env.REPO_BRANCH }}-
 
@@ -168,7 +168,7 @@ jobs:
           make defconfig
           bash "$GITHUB_WORKSPACE/scripts/verify-config.sh"
           echo "Selected proxy packages after defconfig:"
-          grep -E '^CONFIG_PACKAGE_((luci-app-(ssr-plus|passwall|nikki)|nikki|mihomo-meta|xray-core|v2ray-core|mosdns|shadowsocks-libev|shadowsocksr-libev|shadowsocks-rust|hysteria|tuic-client|naiveproxy|kcptun|trojan|sing-box|firewall4|kmod-nft-tproxy|ucode-mod-digest)=y|luci-app-(ssr-plus|passwall)_(INCLUDE_|Nftables_))' .config || true
+          grep -E '^CONFIG_PACKAGE_((luci-app-(ssr-plus|passwall|bypass)|bypasscore|xray-core|v2ray-core|mosdns|shadowsocks-libev|shadowsocksr-libev|shadowsocks-rust|hysteria|tuic-client|naiveproxy|kcptun|trojan|sing-box|firewall4|kmod-nft-tproxy|ucode-mod-digest)=y|luci-app-(ssr-plus|passwall|bypass)_(INCLUDE_|Nftables_))' .config || true
 
       - name: 清除 Go module 缓存
         working-directory: ./openwrt
@@ -287,7 +287,7 @@ jobs:
           {
             echo "Source: $REPO_URL ($REPO_BRANCH)"
             git -C openwrt rev-parse HEAD
-            for source in openwrt/feeds/* openwrt/.openclash-source openwrt/.gettext-gnulib; do
+            for source in openwrt/feeds/* openwrt/package/custom/luci-app-bypass openwrt/.openclash-source openwrt/.gettext-gnulib; do
               [ -d "$source/.git" ] || continue
               echo "$source $(git -C "$source" rev-parse HEAD)"
             done

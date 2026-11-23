@@ -20,11 +20,22 @@ class ImageTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         self.image = self.root / "combined.img.gz"
-        self.archive = gzip.compress(b"\0" * (16 * 1024 * 1024))
+        self.disk = bytearray(16 * 1024 * 1024)
+        self.disk[0] = 0xEB
+        self.disk[446] = 0x80
+        self.disk[510:512] = b"\x55\xaa"
+        self.archive = gzip.compress(self.disk)
         self.image.write_bytes(self.archive)
 
     def test_complete_gzip(self):
         firmware.verify_image(self.image, self.root / "missing-fwtool")
+
+    def test_bios_boot_sector_required(self):
+        for offset, reason in ((510, "MBR signature"), (0, "boot code"), (446, "not active")):
+            with self.subTest(reason=reason), self.assertRaisesRegex(SystemExit, reason):
+                header = self.disk[:512]
+                header[offset] = 0
+                firmware.verify_bios_boot_sector(self.image, header)
 
     def test_truncated_gzip(self):
         self.image.write_bytes(self.archive[:-4])
@@ -75,22 +86,32 @@ class ManifestTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name) / "openwrt/bin/targets/x86/64"
         self.root.mkdir(parents=True)
-        for name in ("combined.img.gz", "combined-efi.img.gz"):
+        for name in ("generic-squashfs-combined.img.gz", "generic-squashfs-combined-efi.img.gz"):
             (self.root / name).touch()
         self.packages = {
             "base-files", "busybox", "netifd", "dnsmasq-full", "odhcp6c",
-            "odhcpd-ipv6only", "ppp-mod-pppoe", "luci-mod-network",
-            "luci-proto-ipv6", "luci-app-firewall", "luci-compat",
+            "odhcpd-ipv6only", "ppp", "ppp-mod-pppoe", "kmod-pppoe", "luci-mod-network",
+            "luci-proto-ipv6", "luci-proto-ppp", "luci-app-firewall", "luci-compat",
+            "luci-app-filemanager", "luci-app-ddns", "luci-app-upnp", "luci-app-wol", "luci-app-ttyd",
             "luci-app-openclash", "luci-app-passwall", "luci-app-ssr-plus",
-            "luci-app-nikki", "nikki", "mihomo-meta", "xray-core", "sing-box",
-            "luci-theme-edge", "luci-theme-vantage", "luci-theme-argon", "luci-theme-bootstrap",
+            "luci-app-bypass", "bypasscore", "naiveproxy", "v2ray-geoip", "v2ray-geosite",
+            "xray-core", "sing-box", "luci-theme-edge", "luci-theme-vantage", "luci-theme-bootstrap",
             "luci-lua-runtime", "ucode-mod-lua",
             "firewall4", "kmod-nft-tproxy", "kmod-nft-socket", "kmod-nft-nat",
+            "ip-full", "kmod-tun", "kmod-vmxnet3",
         }
+        self.versions = {
+            "xray-core": "26.11.9-r2",
+            "sing-box": "1.14.4-r1",
+            "hysteria": "2.14.0-r1",
+            "tuic-client": "1.8.11-r1",
+            "naiveproxy": "154.0.8037.49-5",
+        }
+        self.packages.update(self.versions)
 
     def verify(self, extra):
         (self.root / "generic.manifest").write_text(
-            "".join(f"{name} - 1\n" for name in sorted(self.packages | extra)),
+            "".join(f"{name} - {self.versions.get(name, '1')}\n" for name in sorted(self.packages | extra)),
             encoding="utf-8",
         )
         with patch.object(firmware, "verify_image"):
@@ -98,6 +119,27 @@ class ManifestTests(unittest.TestCase):
 
     def test_nftables_profile(self):
         self.verify(set())
+
+    def test_stale_proxy_core_rejected(self):
+        self.versions["sing-box"] = "1.12.25-r1"
+        with self.assertRaisesRegex(SystemExit, "sing-box.*below required"):
+            self.verify(set())
+
+    def test_stale_naiveproxy_release_rejected(self):
+        self.versions["naiveproxy"] = "154.0.8037.49-r4"
+        with self.assertRaisesRegex(SystemExit, "naiveproxy.*below required"):
+            self.verify(set())
+
+    def test_each_filesystem_needs_both_boot_images(self):
+        (self.root / "generic-ext4-combined.img.gz").touch()
+        with self.assertRaisesRegex(SystemExit, "UEFI firmware image missing.*ext4"):
+            self.verify(set())
+
+    def test_firmware_needs_pppoe_ui_file_manager_and_esxi_driver(self):
+        for package in ("luci-proto-ppp", "luci-app-filemanager", "kmod-vmxnet3"):
+            with self.subTest(package=package), patch.object(self, "packages", self.packages - {package}):
+                with self.assertRaisesRegex(SystemExit, f"missing packages.*{package}"):
+                    self.verify(set())
 
     def test_iptables_profile_rejected(self):
         self.packages.remove("firewall4")
@@ -113,13 +155,19 @@ class ManifestTests(unittest.TestCase):
         with self.assertRaisesRegex(SystemExit, "missing packages.*kmod-nft-tproxy"):
             self.verify(set())
 
+    def test_bypass_core_required(self):
+        self.packages.remove("bypasscore")
+        with self.assertRaisesRegex(SystemExit, "missing packages.*bypasscore"):
+            self.verify(set())
+
     def test_conflicting_dhcp_rejected(self):
         with self.assertRaisesRegex(SystemExit, "unexpected packages.*dnsmasq"):
             self.verify({"dnsmasq"})
 
     def test_removed_or_conflicting_apps_rejected(self):
         for package in ("luci-app-clashoo", "clashoo", "luci-app-passwall2", "luci-app-homeproxy",
-                        "samba4-server", "vsftpd", "mihomo", "mihomo-alpha"):
+                        "samba4-server", "vsftpd", "mihomo", "mihomo-alpha", "mihomo-meta",
+                        "luci-app-nikki", "nikki", "luci-theme-argon"):
             with self.subTest(package=package), self.assertRaisesRegex(SystemExit, f"unexpected packages.*{package}"):
                 self.verify({package})
 
