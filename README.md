@@ -69,20 +69,20 @@ OpenWrt 官方源码构建：
 
 ## 主题与插件说明
 
-三套固件都内置 Edge、Vantage、Bootstrap 三个 LuCI 主题。默认使用 Edge，可在「系统 → 系统 → 语言和界面」切换到 Vantage。固件包含 OpenClash、Clashoo、SSR-Plus、PassWall 和常用 LuCI 应用。网络共享服务 Samba 和 FTP 已移除，LuCI 文件管理器仍可管理路由器本机文件。
+三套固件都内置 Edge、Vantage、Argon 和 Bootstrap。默认使用 Edge，可在「系统 → 系统 → 语言和界面」切换主题。固件包含 OpenClash、Nikki、SSR-Plus、PassWall 和常用 LuCI 应用。网络共享服务 Samba 和 FTP 已移除，LuCI 文件管理器仍可管理路由器本机文件。
 
-OpenClash 来自 `vernesong/OpenClash`，Clashoo 来自 `kenzok8/openwrt-clashoo`，PassWall 及其依赖来自 `Openwrt-Passwall`，Vantage 来自 `anothaDev/luci-theme-vantage`。Clashoo 编译自带的 Mihomo，OpenClash 使用独立目录下的稳定版 Mihomo amd64-compatible 核心，并在构建时验证下载文件的 SHA256。
+OpenClash 来自 `vernesong/OpenClash`，Nikki 来自 `nikkinikki-org/OpenWrt-nikki`，PassWall 及其依赖来自 `Openwrt-Passwall`。Vantage 来自 `anothaDev/luci-theme-vantage`，Argon 来自 `jerrykuku/luci-theme-argon` 的 `v3.1.4`。Nikki 使用上游稳定版 `mihomo-meta`，OpenClash 使用独立目录下的稳定版 Mihomo amd64-compatible 核心，并在构建时验证下载文件的 SHA256。
 
 各构建配置均包含：
 
 - 基本路由、NAT、防火墙、LuCI 网络管理、DHCP 上网和 PPPoE 拨号。
 - IPv6 内核、DHCPv6 客户端、前缀委派（PD）、odhcpd 的 DHCPv6 服务、RA 与 SLAAC。
 - dnsmasq-full：DNS 缓存、DHCPv4、静态租约、DNSSEC 和 IPv6 DNS 解析支持；IPv6 地址分配由 odhcpd 负责。
-- firewall4/nftables/nftset，满足 Clashoo 依赖，并让 PassWall 和 SSR-Plus 使用 nftables 透明代理后端。
+- firewall4/nftables/nftset，满足 Nikki 依赖，并让 PassWall 和 SSR-Plus 使用 nftables 透明代理后端。
 
 首次应用网络默认配置时，LAN 为 `192.168.2.1/24`，DHCP 地址池为 `.100` 至 `.249`、租期 12 小时，LAN 分配 IPv6 /64 并启用 RA/SLAAC 与 DHCPv6；DHCP WAN 自动请求 IPv6 地址和前缀，不屏蔽 AAAA。公网 IPv6 仍需运营商提供地址及 PD；PPPoE 账号和密码需在刷机后填写。保留旧配置升级时请检查现有网络设置，完整默认配置以全新刷写为准。
 
-OpenClash、Clashoo 和 PassWall 默认关闭。导入订阅后，选择一个代理接管透明代理和 DNS，以免争抢规则和端口。
+OpenClash、Nikki 和 PassWall 默认关闭。导入订阅后，选择一个代理接管透明代理和 DNS，以免争抢规则和端口。
 
 ImmortalWrt 使用 `openwrt-24.10`，LEDE 使用 `master` 源码和 `openwrt-24.10` LuCI。官方源码构建使用 `v25.12.6` 标签指定的上游 feeds。构建时为 Edge 的 Lua 模板应用 LuCI 兼容补丁，并校验 `luci-compat`、`luci-lua-runtime` 和 `ucode-mod-lua`。固件也内置 Bootstrap 备用主题。
 
@@ -107,7 +107,7 @@ Actions 产物的 `metadata/` 目录保存 `build.config`、`feeds.conf.default`
 - LEDE 的 gettext 0.22.5 使用固定的 gnulib `c99c8d491850dc3a6e0b8604a2729d8bc5c0eff1`（24.10 基线）。gettext 0.24.2 等其他版本使用上游源码指定的 gnulib。工作流先构建 gettext 主机工具，提前发现兼容问题。
 - LEDE 为 elfutils 补齐 Bison/Flex 构建依赖，确保解析器生成工具及数据安装完成后再编译。工具预编译遵守 `compile_threads`；并行失败时单线程重试。
 - 三套工作流分别恢复缓存；Release 标签包含方案名、Run ID 和重跑次数。
-- 固件清单必须包含 firewall4 和透明代理所需的内核模块，并检查是否混入旧防火墙、已移除的服务或独立的 Mihomo 包。
+- 固件清单必须包含 firewall4、透明代理所需的内核模块和 Nikki 的稳定版核心，并检查是否混入已移除的服务或其他系统级 Mihomo 软件包。
 - `make defconfig` 后逐项比对输入配置中明确选择的软件包及其选项；上游移除或改名时立即报错，避免带着缺失功能继续编译。
 
 源码和 feeds 的移动分支仍会随上游变化；配置检查、编译成功和镜像校验不能替代硬件启动及联网测试。每次更换源码分支后仍应核验主题页面、WAN/PPPoE、IPv6 和各代理的实际运行。

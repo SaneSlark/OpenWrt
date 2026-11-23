@@ -5,11 +5,11 @@ required=(
   IPV6 KERNEL_IPV6 GRUB_IMAGES GRUB_EFI_IMAGES
   TARGET_ROOTFS_SQUASHFS
   PACKAGE_luci-app-openclash PACKAGE_luci-app-passwall
-  PACKAGE_luci-app-clashoo PACKAGE_clashoo
+  PACKAGE_luci-app-nikki PACKAGE_nikki PACKAGE_mihomo-meta
   PACKAGE_luci-app-ssr-plus PACKAGE_xray-core PACKAGE_sing-box
   PACKAGE_luci-app-filemanager
   PACKAGE_luci-compat PACKAGE_luci-mod-network PACKAGE_luci-app-firewall
-  PACKAGE_luci-theme-edge PACKAGE_luci-theme-vantage PACKAGE_luci-theme-bootstrap
+  PACKAGE_luci-theme-edge PACKAGE_luci-theme-vantage PACKAGE_luci-theme-argon PACKAGE_luci-theme-bootstrap
   PACKAGE_luci-lua-runtime PACKAGE_ucode-mod-lua
   PACKAGE_luci-proto-ipv6 PACKAGE_luci-proto-ppp
   PACKAGE_ppp-mod-pppoe PACKAGE_odhcp6c PACKAGE_odhcpd-ipv6only
@@ -18,7 +18,8 @@ required=(
   PACKAGE_firewall4 PACKAGE_kmod-nft-tproxy PACKAGE_kmod-nft-socket PACKAGE_kmod-nft-nat
 )
 excluded=(
-  firewall dnsmasq dnsmasq-dhcpv6 odhcpd mihomo clash-meta
+  firewall dnsmasq dnsmasq-dhcpv6 odhcpd mihomo mihomo-alpha clash-meta
+  luci-app-clashoo clashoo luci-i18n-clashoo-zh-cn
   luci-app-passwall2 luci-app-homeproxy autosamba luci-app-samba luci-app-samba4 samba36-server samba4-server
   luci-app-ksmbd ksmbd-server luci-app-nfs nfs-kernel-server luci-app-vsftpd vsftpd vsftpd-tls
 )

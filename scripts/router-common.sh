@@ -5,7 +5,8 @@ router_configure_feeds() {
   local file="$1"
 
   # Keep the custom packages in a consistent order when rerunning preprocessing.
-  sed -i -E '/^src-git[[:blank:]]+(passwall_packages|passwall2?|helloworld|homeproxy|clashoo|vantage)[[:blank:]]/d' "$file"
+  sed -i -E '/^src-git[[:blank:]]+(passwall_packages|passwall2?|helloworld|homeproxy|clashoo|nikki|vantage)[[:blank:]]/d' "$file"
+  sed -i '1i src-git nikki https://github.com/nikkinikki-org/OpenWrt-nikki.git;main' "$file"
   if [ "$ENABLE_PASSWALL" = "true" ]; then
     # The forks also ship PassWall in LuCI. Install the official app first.
     sed -i '1i src-git passwall https://github.com/Openwrt-Passwall/openwrt-passwall.git;main' "$file"
@@ -15,7 +16,6 @@ router_configure_feeds() {
     echo 'src-git helloworld https://github.com/fw876/helloworld.git' >> "$file"
   fi
   cat >> "$file" <<'EOF'
-src-git clashoo https://github.com/kenzok8/openwrt-clashoo.git;main
 src-git vantage https://github.com/anothaDev/luci-theme-vantage.git;main
 EOF
 }
@@ -32,6 +32,10 @@ router_pre() {
   mkdir -p package/custom
   mkdir -p package/custom/luci-app-openclash
   cp -a .openclash-source/luci-app-openclash/. package/custom/luci-app-openclash/
+
+  local argon="package/custom/luci-theme-argon"
+  rm -rf "$argon"
+  git clone --depth 1 --single-branch -b v3.1.4 https://github.com/jerrykuku/luci-theme-argon.git "$argon"
 
   if [ "$ENABLE_THEME_EDGE" = "true" ]; then
     local theme="package/custom/luci-theme-edge"
@@ -61,8 +65,14 @@ router_fix_efi_partition_type() {
 
 router_post() {
   router_fix_host_tools
-  # Avoid a Kconfig cycle when SSR-Plus resolves its optional Mihomo package.
-  sed -i '/^[[:blank:]]*PROVIDES:=mihomo clash-meta$/d' feeds/clashoo/clashoo/Makefile
+  # Select Nikki's stable core by name to keep SSR-Plus out of Mihomo provider cycles.
+  local nikki="feeds/nikki/nikki/Makefile"
+  sed -i -E '/^[[:blank:]]*DEPENDS:=/s/\+mihomo([[:blank:]]|$)/+mihomo-meta\1/' "$nikki"
+  if ! grep -Eq '^[[:blank:]]*DEPENDS:=.*\+mihomo-meta([[:blank:]]|$)' "$nikki"; then
+    echo "Could not select the stable Mihomo package for Nikki." >&2
+    return 1
+  fi
+  sed -i '/^[[:blank:]]*PROVIDES:=mihomo$/d' feeds/nikki/mihomo-{meta,alpha}/Makefile
   if [ "${FIRMWARE_VARIANT:-}" = "openwrt" ] && [ -L package/feeds/luci/luci-app-weechat ]; then
     # The unused 25.12.6 app forms a dependency cycle with its two core variants.
     rm -f package/feeds/luci/luci-app-weechat
@@ -74,15 +84,12 @@ router_post() {
 }
 
 router_fix_host_tools() {
-  local makefile
-
-  # Both packages invoke po2lmo directly rather than through luci.mk.
+  local makefile="package/custom/luci-app-openclash/Makefile"
+  # OpenClash invokes po2lmo directly rather than through luci.mk.
   # The 24.10 luci-base host package supplies the translation compiler.
-  for makefile in package/custom/luci-app-openclash/Makefile feeds/clashoo/luci-app-clashoo/Makefile; do
-    if ! grep -q 'PKG_BUILD_DEPENDS.*luci-base/host' "$makefile"; then
-      sed -i '/^include.*package\.mk/i PKG_BUILD_DEPENDS+=luci-base/host' "$makefile"
-    fi
-  done
+  if ! grep -q 'PKG_BUILD_DEPENDS.*luci-base/host' "$makefile"; then
+    sed -i '/^include.*package\.mk/i PKG_BUILD_DEPENDS+=luci-base/host' "$makefile"
+  fi
 
   # upx/host is a feed host package, installed in hostpkg rather than host.
   for makefile in package/feeds/*/mihomo/Makefile feeds/*/mihomo/Makefile feeds/*/net/mihomo/Makefile; do

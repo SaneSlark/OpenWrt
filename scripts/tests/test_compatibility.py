@@ -82,8 +82,9 @@ class ManifestTests(unittest.TestCase):
             "odhcpd-ipv6only", "ppp-mod-pppoe", "luci-mod-network",
             "luci-proto-ipv6", "luci-app-firewall", "luci-compat",
             "luci-app-openclash", "luci-app-passwall", "luci-app-ssr-plus",
-            "luci-app-clashoo", "clashoo", "xray-core", "sing-box",
-            "luci-theme-edge", "luci-theme-vantage", "luci-theme-bootstrap", "luci-lua-runtime", "ucode-mod-lua",
+            "luci-app-nikki", "nikki", "mihomo-meta", "xray-core", "sing-box",
+            "luci-theme-edge", "luci-theme-vantage", "luci-theme-argon", "luci-theme-bootstrap",
+            "luci-lua-runtime", "ucode-mod-lua",
             "firewall4", "kmod-nft-tproxy", "kmod-nft-socket", "kmod-nft-nat",
         }
 
@@ -117,7 +118,8 @@ class ManifestTests(unittest.TestCase):
             self.verify({"dnsmasq"})
 
     def test_removed_or_conflicting_apps_rejected(self):
-        for package in ("luci-app-passwall2", "luci-app-homeproxy", "samba4-server", "vsftpd", "mihomo"):
+        for package in ("luci-app-clashoo", "clashoo", "luci-app-passwall2", "luci-app-homeproxy",
+                        "samba4-server", "vsftpd", "mihomo", "mihomo-alpha"):
             with self.subTest(package=package), self.assertRaisesRegex(SystemExit, f"unexpected packages.*{package}"):
                 self.verify({package})
 

@@ -23,7 +23,7 @@ TIMEZONE="CST-8"
 ZONENAME="Asia/Shanghai"
 
 ENABLE_THEME_EDGE="true"
-# LEDE 方案包含 OpenClash、Clashoo、SSR-Plus 和 PassWall。
+# LEDE 方案包含 OpenClash、Nikki、SSR-Plus 和 PassWall。
 ENABLE_FILETRANSFER="true"
 ENABLE_VLMCSD="true"
 ENABLE_SSR_PLUS="true"

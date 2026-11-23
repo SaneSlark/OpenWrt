@@ -90,13 +90,15 @@ def verify(target):
         "odhcpd-ipv6only", "ppp-mod-pppoe", "luci-mod-network",
         "luci-proto-ipv6", "luci-app-firewall", "luci-compat",
         "luci-app-openclash", "luci-app-passwall", "xray-core", "sing-box",
-        "luci-app-clashoo", "clashoo",
-        "luci-theme-edge", "luci-theme-vantage", "luci-theme-bootstrap", "luci-lua-runtime", "ucode-mod-lua",
+        "luci-app-nikki", "nikki", "mihomo-meta",
+        "luci-theme-edge", "luci-theme-vantage", "luci-theme-argon", "luci-theme-bootstrap",
+        "luci-lua-runtime", "ucode-mod-lua",
         "luci-app-ssr-plus",
         "firewall4", "kmod-nft-tproxy", "kmod-nft-socket", "kmod-nft-nat",
     }
     excluded = {
-        "firewall", "dnsmasq", "dnsmasq-dhcpv6", "odhcpd", "mihomo", "clash-meta",
+        "firewall", "dnsmasq", "dnsmasq-dhcpv6", "odhcpd", "mihomo", "mihomo-alpha", "clash-meta",
+        "luci-app-clashoo", "clashoo", "luci-i18n-clashoo-zh-cn",
         "luci-app-passwall2", "luci-app-homeproxy", "autosamba", "luci-app-samba",
         "luci-app-samba4", "samba36-server", "samba4-server", "luci-app-ksmbd",
         "ksmbd-server", "luci-app-nfs", "nfs-kernel-server", "luci-app-vsftpd", "vsftpd", "vsftpd-tls",

@@ -2,6 +2,7 @@
 
 ## 2026-11-23
 
+- 三套固件用 Nikki 替换 Clashoo，选用 Nikki 上游的稳定版 `mihomo-meta`，并新增 Argon `v3.1.4` 主题。
 - 官方 OpenWrt 25.12.6 关闭 SSR-Plus 中依赖 `3proxy` 的可选 HTTP 代理组件，修复 `apk` 安装固件软件包时的缺包错误。配置校验会在编译前检查该依赖。
 
 ## 2026-11-22

@@ -168,7 +168,7 @@ jobs:
           make defconfig
           bash "$GITHUB_WORKSPACE/scripts/verify-config.sh"
           echo "Selected proxy packages after defconfig:"
-          grep -E '^CONFIG_PACKAGE_((luci-app-(ssr-plus|passwall|clashoo)|clashoo|xray-core|v2ray-core|mosdns|shadowsocks-libev|shadowsocksr-libev|shadowsocks-rust|hysteria|tuic-client|naiveproxy|kcptun|trojan|sing-box|firewall4|kmod-nft-tproxy|ucode-mod-digest)=y|luci-app-(ssr-plus|passwall)_(INCLUDE_|Nftables_))' .config || true
+          grep -E '^CONFIG_PACKAGE_((luci-app-(ssr-plus|passwall|nikki)|nikki|mihomo-meta|xray-core|v2ray-core|mosdns|shadowsocks-libev|shadowsocksr-libev|shadowsocks-rust|hysteria|tuic-client|naiveproxy|kcptun|trojan|sing-box|firewall4|kmod-nft-tproxy|ucode-mod-digest)=y|luci-app-(ssr-plus|passwall)_(INCLUDE_|Nftables_))' .config || true
 
       - name: 清除 Go module 缓存
         working-directory: ./openwrt
