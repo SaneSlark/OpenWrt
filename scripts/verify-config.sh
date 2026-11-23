@@ -58,6 +58,11 @@ for app in passwall ssr-plus; do
     failed=1
   }
 done
+if grep -qxF 'CONFIG_PACKAGE_luci-app-ssr-plus_INCLUDE_Http_Proxy=y' .config &&
+   ! grep -qxF 'CONFIG_PACKAGE_3proxy=y' .config; then
+  echo "SSR-Plus HTTP proxy requires 3proxy to be built into the firmware." >&2
+  failed=1
+fi
 test -s files/etc/openclash/core/clash_meta || failed=1
 [ "$failed" = 0 ] || exit 1
 echo "Router, IPv6, DNS/DHCP and nftables proxy configuration verified."
