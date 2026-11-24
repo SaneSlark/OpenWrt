@@ -32,14 +32,13 @@ router_pre() {
   mkdir -p package/custom/luci-app-openclash
   cp -a .openclash-source/luci-app-openclash/. package/custom/luci-app-openclash/
 
-  local bypass="package/custom/luci-app-bypass"
-  rm -rf "$bypass"
-  git clone --depth 1 --single-branch -b v2.1.6 https://github.com/kinmeic/luci-app-bypass.git "$bypass"
-  mkdir -p package/custom/bypasscore
-  cp "${WORKDIR}/packages/bypasscore/Makefile" package/custom/bypasscore/
-  # Upstream offers the mandatory core as a separate download.
-  sed -i 's/^LUCI_DEPENDS:=/LUCI_DEPENDS:=+bypasscore /' "$bypass/Makefile"
-  grep -q '^LUCI_DEPENDS:=+bypasscore ' "$bypass/Makefile"
+  local homeproxy="package/custom/luci-app-homeproxy"
+  if [ -d "$homeproxy/.git" ]; then
+    git -C "$homeproxy" pull --ff-only
+  else
+    git clone --depth 1 --single-branch -b master \
+      https://github.com/immortalwrt/homeproxy.git "$homeproxy"
+  fi
 
   if [ "$ENABLE_THEME_EDGE" = "true" ]; then
     local theme="package/custom/luci-theme-edge"
@@ -106,13 +105,4 @@ router_fix_host_tools() {
   if ! grep -q 'PKG_BUILD_DEPENDS.*luci-base/host' "$makefile"; then
     sed -i '/^include.*package\.mk/i PKG_BUILD_DEPENDS+=luci-base/host' "$makefile"
   fi
-
-  # upx/host is a feed host package, installed in hostpkg rather than host.
-  for makefile in package/feeds/*/mihomo/Makefile feeds/*/mihomo/Makefile feeds/*/net/mihomo/Makefile; do
-    [ -f "$makefile" ] || continue
-    if grep -Fq '$(STAGING_DIR_HOST)/bin/upx' "$makefile"; then
-      sed -i 's#$(STAGING_DIR_HOST)/bin/upx#$(STAGING_DIR_HOSTPKG)/bin/upx#g' "$makefile"
-      echo "Fixed UPX host package path in $makefile."
-    fi
-  done
 }

@@ -23,7 +23,7 @@ TIMEZONE="CST-8"
 ZONENAME="Asia/Shanghai"
 
 ENABLE_THEME_EDGE="true"
-# LEDE 方案包含 OpenClash、Bypass、SSR-Plus 和 PassWall。
+# LEDE 方案包含 OpenClash、SSR-Plus 和 PassWall。
 ENABLE_FILETRANSFER="true"
 ENABLE_VLMCSD="true"
 ENABLE_SSR_PLUS="true"
@@ -166,14 +166,11 @@ disabled_packages() {
   if [ "$ENABLE_SSR_PLUS_LEGACY_EXTRAS" != "true" ]; then
     sed -i \
       -e '/CONFIG_PACKAGE_luci-app-ssr-plus_INCLUDE_MosDNS=y/d' \
-      -e '/CONFIG_PACKAGE_luci-app-ssr-plus_INCLUDE_Mihomo=y/d' \
-      -e '/CONFIG_PACKAGE_luci-app-ssr-plus_INCLUDE_Shadowsocks_Mihomo_Client=y/d' \
       -e '/CONFIG_PACKAGE_luci-app-ssr-plus_INCLUDE_Shadowsocks_Simple_Obfs=y/d' \
       -e '/CONFIG_PACKAGE_luci-app-ssr-plus_INCLUDE_Shadowsocks_V2ray_Plugin=y/d' \
       -e '/CONFIG_PACKAGE_luci-app-ssr-plus_INCLUDE_ShadowsocksR_Libev_Client=y/d' \
       -e '/CONFIG_PACKAGE_luci-app-ssr-plus_INCLUDE_ShadowsocksR_Libev_Server=y/d' \
       -e '/CONFIG_PACKAGE_luci-app-ssr-plus_INCLUDE_Redsocks2=y/d' \
-      -e '/CONFIG_PACKAGE_mihomo=y/d' \
       -e '/CONFIG_PACKAGE_mosdns=y/d' \
       .config || true
   fi
@@ -257,7 +254,7 @@ post_stage() {
   cd "$OPENWRT_DIR"
 
   router_post
-  router_use_release_packages hysteria tuic-client naiveproxy
+  router_use_release_packages hysteria tuic-client naiveproxy mihomo
 
   patch_packages
   system_defaults

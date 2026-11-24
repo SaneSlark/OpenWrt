@@ -94,7 +94,8 @@ class ManifestTests(unittest.TestCase):
             "luci-proto-ipv6", "luci-proto-ppp", "luci-app-firewall", "luci-compat",
             "luci-app-filemanager", "luci-app-ddns", "luci-app-upnp", "luci-app-wol", "luci-app-ttyd",
             "luci-app-openclash", "luci-app-passwall", "luci-app-ssr-plus",
-            "luci-app-bypass", "bypasscore", "naiveproxy", "v2ray-geoip", "v2ray-geosite",
+            "luci-app-homeproxy", "luci-i18n-homeproxy-zh-cn", "ucode-mod-digest",
+            "v2ray-geoip", "v2ray-geosite",
             "xray-core", "sing-box", "luci-theme-edge", "luci-theme-vantage", "luci-theme-bootstrap",
             "luci-lua-runtime", "ucode-mod-lua",
             "firewall4", "kmod-nft-tproxy", "kmod-nft-socket", "kmod-nft-nat",
@@ -106,23 +107,56 @@ class ManifestTests(unittest.TestCase):
             "hysteria": "2.14.0-r1",
             "tuic-client": "1.8.11-r1",
             "naiveproxy": "154.0.8037.49-5",
+            "mihomo": "1.19.34-r1",
         }
         self.packages.update(self.versions)
 
-    def verify(self, extra):
+    def verify(self, extra, *, official=False):
         (self.root / "generic.manifest").write_text(
             "".join(f"{name} - {self.versions.get(name, '1')}\n" for name in sorted(self.packages | extra)),
             encoding="utf-8",
         )
         with patch.object(firmware, "verify_image"):
-            firmware.verify(self.root)
+            firmware.verify(self.root, official=official)
 
     def test_nftables_profile(self):
         self.verify(set())
 
+    def test_official_apk_repositories_match_firmware_release(self):
+        etc = self.root.parents[3] / "build_dir/target-x86_64_musl/root-x86/etc"
+        repos = etc / "apk/repositories.d"
+        repos.mkdir(parents=True)
+        (etc / "openwrt_release").write_text("DISTRIB_RELEASE='25.12.6'\n", encoding="utf-8")
+        base = "https://downloads.openwrt.org/releases/25.12.6"
+        feeds = [
+            f"{base}/targets/x86/64/packages/packages.adb",
+            *(f"{base}/packages/x86_64/{feed}/packages.adb"
+              for feed in ("base", "luci", "packages", "routing", "telephony", "video")),
+        ]
+        distfeeds = repos / "distfeeds.list"
+        distfeeds.write_text("\n".join(feeds), encoding="utf-8")
+        self.verify(set(), official=True)
+        for invalid in (
+            f"{base}/packages/x86_64/passwall/packages.adb",
+            feeds[1].replace("25.12.6", "25.12.5"),
+        ):
+            with self.subTest(invalid=invalid), self.assertRaisesRegex(SystemExit, "Unexpected APK repositories"):
+                distfeeds.write_text("\n".join([*feeds, invalid]), encoding="utf-8")
+                self.verify(set(), official=True)
+
     def test_stale_proxy_core_rejected(self):
         self.versions["sing-box"] = "1.12.25-r1"
         with self.assertRaisesRegex(SystemExit, "sing-box.*below required"):
+            self.verify(set())
+
+    def test_ssr_plus_mihomo_core_required(self):
+        self.packages.remove("mihomo")
+        with self.assertRaisesRegex(SystemExit, "missing packages.*mihomo"):
+            self.verify(set())
+
+    def test_homeproxy_required(self):
+        self.packages.remove("luci-app-homeproxy")
+        with self.assertRaisesRegex(SystemExit, "missing packages.*luci-app-homeproxy"):
             self.verify(set())
 
     def test_stale_naiveproxy_release_rejected(self):
@@ -155,19 +189,15 @@ class ManifestTests(unittest.TestCase):
         with self.assertRaisesRegex(SystemExit, "missing packages.*kmod-nft-tproxy"):
             self.verify(set())
 
-    def test_bypass_core_required(self):
-        self.packages.remove("bypasscore")
-        with self.assertRaisesRegex(SystemExit, "missing packages.*bypasscore"):
-            self.verify(set())
-
     def test_conflicting_dhcp_rejected(self):
         with self.assertRaisesRegex(SystemExit, "unexpected packages.*dnsmasq"):
             self.verify({"dnsmasq"})
 
     def test_removed_or_conflicting_apps_rejected(self):
-        for package in ("luci-app-clashoo", "clashoo", "luci-app-passwall2", "luci-app-homeproxy",
-                        "samba4-server", "vsftpd", "mihomo", "mihomo-alpha", "mihomo-meta",
-                        "luci-app-nikki", "nikki", "luci-theme-argon"):
+        for package in ("luci-app-clashoo", "clashoo", "luci-app-passwall2",
+                        "samba4-server", "vsftpd", "mihomo-alpha", "mihomo-meta",
+                        "luci-app-nikki", "nikki", "luci-theme-argon",
+                        "luci-app-bypass", "bypasscore", "luci-i18n-bypass-zh-cn"):
             with self.subTest(package=package), self.assertRaisesRegex(SystemExit, f"unexpected packages.*{package}"):
                 self.verify({package})
 

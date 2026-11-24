@@ -2,8 +2,12 @@
 # Seed this profile once; the marker follows /etc/config during sysupgrade.
 [ -e /etc/config/.router-network-initialized ] && exit 0
 
+# Advertise delegated IPv6 prefixes without generating a local ULA prefix.
+uci -q delete network.globals.ula_prefix
+
 # Apply the routed LAN profile only when the LAN uses a static address.
 if [ "$(uci -q get network.lan.proto)" = 'static' ]; then
+  # This is the LAN subnet length for SLAAC, independent of the ISP prefix.
   uci set network.lan.ip6assign='64'
   uci set dhcp.lan=dhcp
   uci set dhcp.lan.interface='lan'
@@ -21,14 +25,19 @@ fi
 
 if uci -q get network.wan >/dev/null; then
   uci set network.wan.ipv6='auto'
-  # PPPoE creates its own dynamic IPv6 interface; retain that behavior.
-  if [ "$(uci -q get network.wan.proto)" = 'dhcp' ]; then
-    uci set network.wan6=interface
-    uci set network.wan6.device='@wan'
-    uci set network.wan6.proto='dhcpv6'
-    uci set network.wan6.reqaddress='try'
-    uci set network.wan6.reqprefix='auto'
-  fi
+  case "$(uci -q get network.wan.proto)" in
+    dhcp)
+      uci set network.wan6=interface
+      uci set network.wan6.device='@wan'
+      uci set network.wan6.proto='dhcpv6'
+      uci set network.wan6.reqaddress='try'
+      uci set network.wan6.reqprefix='auto'
+      ;;
+    pppoe)
+      # netifd passes the request to the dynamic IPv6 interface after dialing.
+      uci set network.wan.reqprefix='auto'
+      ;;
+  esac
 fi
 uci set dhcp.@dnsmasq[0].filter_aaaa='0'
 uci commit network

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Reject missing images, damaged gzip files, or incomplete target manifests."""
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -10,7 +11,7 @@ import zlib
 
 
 EFI_SYSTEM_PARTITION = UUID("c12a7328-f81f-11d2-ba4b-00a0c93ec93b").bytes_le
-CORE_PACKAGES = ("xray-core", "sing-box", "hysteria", "tuic-client", "naiveproxy")
+CORE_PACKAGES = ("xray-core", "sing-box", "hysteria", "tuic-client", "naiveproxy", "mihomo")
 PACKAGE_VERSION = re.compile(r"(\d+(?:\.\d+)+)(?:-r?(\d+))?")
 
 
@@ -108,8 +109,43 @@ def minimum_core_versions():
     return minimum
 
 
-def verify(target):
-    fwtool = target.resolve().parents[3] / "staging_dir/host/bin/fwtool"
+def verify_official_apk_sources(root):
+    release_file = root / "etc/openwrt_release"
+    release = re.search(r"^DISTRIB_RELEASE='([^']+)'$", release_file.read_text(encoding="utf-8"), re.MULTILINE)
+    if not release:
+        raise SystemExit(f"{release_file}: missing DISTRIB_RELEASE")
+    release = release[1]
+    path = "snapshots" if release == "SNAPSHOT" else f"releases/{release}"
+    base = f"https://downloads.openwrt.org/{path}"
+    core = f"{base}/targets/x86/64"
+    expected = {f"{core}/packages/packages.adb"}
+    expected.update(f"{base}/packages/x86_64/{feed}/packages.adb"
+                    for feed in ("base", "luci", "packages", "routing", "telephony", "video"))
+    apk = root / "etc/apk"
+    lists = sorted((apk / "repositories.d").glob("*.list"))
+    if (apk / "repositories").is_file():
+        lists.append(apk / "repositories")
+    active = {line.strip() for source in lists for line in source.read_text(encoding="utf-8").splitlines()
+              if line.strip() and not line.lstrip().startswith("#")}
+    kmods = re.compile(re.escape(core) + r"/kmods/[^/]+/packages\.adb")
+    unexpected = {url for url in active - expected if not kmods.fullmatch(url)}
+    if unexpected:
+        raise SystemExit(f"Unexpected APK repositories for OpenWrt {release}: {sorted(unexpected)}")
+    missing = expected - active
+    if missing:
+        raise SystemExit(f"Missing official APK repositories for OpenWrt {release}: {sorted(missing)}")
+    print(f"Verified official APK repositories for OpenWrt {release}")
+
+
+def verify(target, *, official=False):
+    source = target.resolve().parents[3]
+    fwtool = source / "staging_dir/host/bin/fwtool"
+    if official:
+        rootfs = sorted((source / "build_dir").glob("target-*/root-x86"))
+        if not rootfs:
+            raise SystemExit("Official OpenWrt root filesystem missing")
+        for root in rootfs:
+            verify_official_apk_sources(root)
     images = sorted(target.glob("*combined*.img.gz"))
     bios_profiles = {path.name.removesuffix("-combined.img.gz") for path in images
                      if path.name.endswith("-combined.img.gz")}
@@ -132,7 +168,8 @@ def verify(target):
         "luci-proto-ipv6", "luci-proto-ppp", "luci-app-firewall", "luci-compat",
         "luci-app-filemanager", "luci-app-ddns", "luci-app-upnp", "luci-app-wol", "luci-app-ttyd",
         "luci-app-openclash", "luci-app-passwall", "xray-core", "sing-box",
-        "luci-app-bypass", "bypasscore", "naiveproxy", "v2ray-geoip", "v2ray-geosite",
+        "luci-app-homeproxy", "luci-i18n-homeproxy-zh-cn", "ucode-mod-digest",
+        "v2ray-geoip", "v2ray-geosite",
         "luci-theme-edge", "luci-theme-vantage", "luci-theme-bootstrap",
         "luci-lua-runtime", "ucode-mod-lua",
         "luci-app-ssr-plus",
@@ -141,10 +178,11 @@ def verify(target):
         *CORE_PACKAGES,
     }
     excluded = {
-        "firewall", "dnsmasq", "dnsmasq-dhcpv6", "odhcpd", "mihomo", "mihomo-meta", "mihomo-alpha", "clash-meta",
+        "firewall", "dnsmasq", "dnsmasq-dhcpv6", "odhcpd", "mihomo-meta", "mihomo-alpha", "clash-meta",
         "luci-app-nikki", "nikki", "luci-theme-argon",
+        "luci-app-bypass", "bypasscore", "luci-i18n-bypass-zh-cn",
         "luci-app-clashoo", "clashoo", "luci-i18n-clashoo-zh-cn",
-        "luci-app-passwall2", "luci-app-homeproxy", "autosamba", "luci-app-samba",
+        "luci-app-passwall2", "autosamba", "luci-app-samba",
         "luci-app-samba4", "samba36-server", "samba4-server", "luci-app-ksmbd",
         "ksmbd-server", "luci-app-nfs", "nfs-kernel-server", "luci-app-vsftpd", "vsftpd", "vsftpd-tls",
     }
@@ -168,4 +206,4 @@ def verify(target):
 
 
 if __name__ == "__main__":
-    verify(Path(sys.argv[1]))
+    verify(Path(sys.argv[1]), official=os.environ.get("FIRMWARE_VARIANT") == "openwrt")

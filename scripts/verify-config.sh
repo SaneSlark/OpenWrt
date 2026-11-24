@@ -4,9 +4,11 @@ set -eu
 required=(
   IPV6 KERNEL_IPV6 GRUB_IMAGES GRUB_EFI_IMAGES
   TARGET_ROOTFS_SQUASHFS
-  PACKAGE_luci-app-openclash PACKAGE_luci-app-passwall
-  PACKAGE_luci-app-bypass PACKAGE_bypasscore PACKAGE_naiveproxy PACKAGE_v2ray-geoip PACKAGE_v2ray-geosite
+  PACKAGE_luci-app-openclash PACKAGE_luci-app-passwall PACKAGE_luci-app-homeproxy
+  PACKAGE_luci-i18n-homeproxy-zh-cn PACKAGE_ucode-mod-digest
+  PACKAGE_naiveproxy PACKAGE_v2ray-geoip PACKAGE_v2ray-geosite
   PACKAGE_luci-app-ssr-plus PACKAGE_xray-core PACKAGE_sing-box PACKAGE_hysteria PACKAGE_tuic-client
+  PACKAGE_luci-app-ssr-plus_INCLUDE_Mihomo PACKAGE_mihomo
   PACKAGE_luci-app-filemanager
   PACKAGE_luci-compat PACKAGE_luci-mod-network PACKAGE_luci-app-firewall
   PACKAGE_luci-theme-edge PACKAGE_luci-theme-vantage PACKAGE_luci-theme-bootstrap
@@ -19,13 +21,22 @@ required=(
   PACKAGE_kmod-vmxnet3
 )
 excluded=(
-  firewall dnsmasq dnsmasq-dhcpv6 odhcpd mihomo mihomo-meta mihomo-alpha clash-meta
+  firewall dnsmasq dnsmasq-dhcpv6 odhcpd mihomo-meta mihomo-alpha clash-meta
   luci-app-nikki nikki luci-theme-argon
+  luci-app-bypass bypasscore luci-i18n-bypass-zh-cn
   luci-app-clashoo clashoo luci-i18n-clashoo-zh-cn
-  luci-app-passwall2 luci-app-homeproxy autosamba luci-app-samba luci-app-samba4 samba36-server samba4-server
+  luci-app-passwall2 autosamba luci-app-samba luci-app-samba4 samba36-server samba4-server
   luci-app-ksmbd ksmbd-server luci-app-nfs nfs-kernel-server luci-app-vsftpd vsftpd vsftpd-tls
 )
 failed=0
+if [ "${FIRMWARE_VARIANT:-}" = "openwrt" ]; then
+  for feed in helloworld passwall passwall_packages vantage; do
+    if grep -qE "^CONFIG_FEED_${feed}=[ym]$" .config; then
+      echo "Build-only feed must not be listed in official APK repositories: $feed" >&2
+      failed=1
+    fi
+  done
+fi
 # A missing Kconfig symbol is silently discarded by defconfig. Check every
 # explicitly requested package and package option, including optional apps.
 if [ -n "${CONFIG_FILE:-}" ]; then

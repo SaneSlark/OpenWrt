@@ -61,6 +61,7 @@ OpenWrt 官方源码构建：
 - 默认配置：`config/openwrt_x86_64.config`
 - 默认脚本：`scripts/diy-immortal.sh`，主机名设为 `OpenWrt`
 - Actions 产物名：`OpenWrt_x86_64_Official`，Release 标签以 `openwrt-` 开头
+- APK 软件包管理器只使用与固件版本对应的 OpenWrt 官方源。PassWall、SSR-Plus 和 Vantage 等第三方软件包随固件构建。
 
 两个脚本都支持两个执行阶段：
 
@@ -69,24 +70,24 @@ OpenWrt 官方源码构建：
 
 ## 主题与插件说明
 
-三套固件都内置 Edge、Vantage 和 Bootstrap。默认使用 Edge，可在「系统 → 系统 → 语言和界面」切换主题。固件包含 OpenClash、Bypass、SSR-Plus、PassWall 和常用 LuCI 应用。网络共享服务 Samba 和 FTP 已移除，LuCI 文件管理器仍可管理路由器本机文件。
+三套固件都内置 Edge、Vantage 和 Bootstrap。默认使用 Edge，可在「系统 → 系统 → 语言和界面」切换主题。固件包含 OpenClash、SSR-Plus、PassWall、HomeProxy 和常用 LuCI 应用。网络共享服务 Samba 和 FTP 已移除，LuCI 文件管理器仍可管理路由器本机文件。
 
 OpenClash 来自 `vernesong/OpenClash`，PassWall 及其依赖来自 `Openwrt-Passwall`，Vantage 来自 `anothaDev/luci-theme-vantage`。OpenClash 使用独立目录下的稳定版 Mihomo amd64-compatible 核心，并在构建时验证下载文件的 SHA256。
 
-三套构建的代理核心版本至少为 Xray 26.11.9、sing-box 1.14.4、Hysteria 2.14.0、TUIC Client 1.8.11 和 NaiveProxy 154.0.8037.49-5。LEDE 的 Xray 和 sing-box 沿用上游源码配方，其余代理核心使用经 SHA256 校验的上游 x86_64 发布文件。发布时根据固件清单核对版本。
+SSR-Plus 保留 Xray，同时内置经 SHA256 校验的 Mihomo 1.19.34，安装在 `/usr/bin/mihomo`。同一 LAN 只开启一个插件的透明代理和 DNS 接管。
 
-Bypass 使用 `kinmeic/luci-app-bypass` 的 `v2.1.6` 新架构，内置经 SHA256 校验的 BypassCore `v1.5.5` OpenWrt x86_64 预编译核心，以及 NaiveProxy 和 GeoIP/Geosite 数据。BypassCore 负责分流和 DNS，并支持原生 WireGuard 出站。
+三套构建的代理核心版本至少为 Xray 26.11.9、sing-box 1.14.4、Hysteria 2.14.0、TUIC Client 1.8.11 和 NaiveProxy 154.0.8037.49-5。LEDE 的 Xray 和 sing-box 沿用上游源码配方，其余代理核心使用经 SHA256 校验的上游 x86_64 发布文件。发布时根据固件清单核对版本。
 
 各构建配置均包含：
 
 - 基本路由、NAT、防火墙、LuCI 网络管理、DHCP 上网和 PPPoE 拨号。
 - IPv6 内核、DHCPv6 客户端、前缀委派（PD）、odhcpd 的 DHCPv6 服务、RA 与 SLAAC。
 - dnsmasq-full：DNS 缓存、DHCPv4、静态租约、DNSSEC 和 IPv6 DNS 解析支持；IPv6 地址分配由 odhcpd 负责。
-- firewall4/nftables/nftset，满足 Bypass 依赖，并让 PassWall 和 SSR-Plus 使用 nftables 透明代理后端。
+- firewall4/nftables/nftset，供 PassWall 和 SSR-Plus 使用 nftables 透明代理后端。
 
-首次应用网络默认配置时，LAN 为 `192.168.2.1/24`，DHCP 地址池为 `.100` 至 `.249`、租期 12 小时，LAN 分配 IPv6 /64 并启用 RA/SLAAC 与 DHCPv6；DHCP WAN 自动请求 IPv6 地址和前缀，不屏蔽 AAAA。公网 IPv6 仍需运营商提供地址及 PD；PPPoE 账号和密码需在刷机后填写。保留旧配置升级时请检查现有网络设置，完整默认配置以全新刷写为准。
+全新刷机时，LAN 为 `192.168.2.1/24`，DHCP 地址池为 `.100` 至 `.249`，租期 12 小时。DHCP 和 PPPoE WAN 都自动向上游请求 IPv6 地址和前缀委派（PD），默认关闭本地 ULA 前缀。上游下发前缀后，路由器从中分配一个 /64 给 LAN，通过 RA/SLAAC 与 DHCPv6 发布，并保留 AAAA 解析。PPPoE 账号和密码需在刷机后填写。保留已有设置升级时沿用现有网络配置。
 
-OpenClash、Bypass 和 PassWall 默认关闭。配置节点后，选择一个代理接管透明代理和 DNS，以免争抢规则和端口。
+OpenClash 和 PassWall 默认关闭。HomeProxy 使用三套固件内置的 sing-box，预装简体中文界面，默认未选客户端节点，服务端也关闭。配置节点后，选择一个代理接管透明代理和 DNS，以免争抢规则和端口。
 
 ImmortalWrt 使用 `openwrt-24.10`，LEDE 使用 `master` 源码和 `openwrt-24.10` LuCI。官方源码构建使用 `v25.12.6` 标签指定的上游 feeds。构建时为 Edge 的 Lua 模板应用 LuCI 兼容补丁，并校验 `luci-compat`、`luci-lua-runtime` 和 `ucode-mod-lua`。固件也内置 Bootstrap 备用主题。
 
@@ -113,7 +114,7 @@ ESXi 三套固件都包含 VMXNET3 网卡驱动。将与虚拟机固件模式匹
 - LEDE 的 gettext 0.22.5 使用固定的 gnulib `c99c8d491850dc3a6e0b8604a2729d8bc5c0eff1`（24.10 基线）。gettext 0.24.2 等其他版本使用上游源码指定的 gnulib。工作流先构建 gettext 主机工具，提前发现兼容问题。
 - LEDE 为 elfutils 补齐 Bison/Flex 构建依赖，确保解析器生成工具及数据安装完成后再编译。工具预编译遵守 `compile_threads`；并行失败时单线程重试。
 - 三套工作流分别恢复缓存。Git tag 和 Release 标题使用发布时的北京时间，格式为 `方案名-YYYYMMDD-HHMMSS`。构建编号可从 Release 正文中的 Actions 链接查到。
-- 固件清单检查 PPPoE、IPv6、VMXNET3、常用 LuCI 应用、firewall4、透明代理所需的内核模块、BypassCore 和 Bypass 的数据包，以及已移除的主题和服务。每种已生成的根文件系统都需配有 BIOS 和 UEFI 两种引导镜像。
+- 固件清单检查 PPPoE、IPv6、VMXNET3、常用 LuCI 应用、firewall4、代理核心和透明代理所需的内核模块，以及已移除的主题和服务。每种已生成的根文件系统都需配有 BIOS 和 UEFI 两种引导镜像。
 - `make defconfig` 后逐项比对输入配置中明确选择的软件包及其选项；上游移除或改名时立即报错，避免带着缺失功能继续编译。
 
 源码和 feeds 的移动分支仍会随上游变化；配置检查、编译成功和镜像校验不能替代硬件启动及联网测试。每次更换源码分支后仍应核验主题页面、WAN/PPPoE、IPv6 和各代理的实际运行。

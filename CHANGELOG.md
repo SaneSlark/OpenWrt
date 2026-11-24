@@ -2,6 +2,11 @@
 
 ## 2026-11-24
 
+- 三套固件恢复 HomeProxy 和简体中文界面，使用内置的 sing-box。
+- 三套固件的 SSR-Plus 增加 Mihomo 1.19.34 后端。
+- 三套固件均移除 Bypass 和 BypassCore，保留 OpenClash、PassWall 和 SSR-Plus。
+- 修复官方 OpenWrt 镜像将编译用的第三方 feeds 写入 APK 官方源列表的问题，避免在 LuCI 中执行 `apk update` 时遇到无效索引。
+- 新刷机时，DHCP 和 PPPoE 自动向上游请求 IPv6 前缀委派，默认关闭本地 ULA 前缀。LAN 继续从委派前缀分配 /64。
 - Git tag 和 Release 标题统一使用北京时间，格式为 `方案名-YYYYMMDD-HHMMSS`。历史 Release 按原始发布时间更新。
 
 ## 2026-11-23
