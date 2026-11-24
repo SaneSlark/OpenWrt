@@ -1,0 +1,63 @@
+#!/bin/sh
+# Enable IPv6 relay fallback for the standard routed LAN profile.
+marker=/etc/config/.router-ipv6-relay-initialized
+[ -e "$marker" ] && exit 0
+[ "$(uci -q get network.lan.proto)" = 'static' ] || exit 0
+[ "$(uci -q get dhcp.lan.ra)" = 'server' ] || exit 0
+[ "$(uci -q get dhcp.lan.dhcpv6)" = 'server' ] || exit 0
+case "$(uci -q get dhcp.lan.ndp)" in
+  ''|disabled) ;;
+  *) exit 0 ;;
+esac
+if uci show dhcp | grep -q "\.master='1'$"; then
+  exit 0
+fi
+
+case "$(uci -q get network.wan.proto)" in
+  dhcp)
+    [ "$(uci -q get network.wan6.proto)" = 'dhcpv6' ] || exit 0
+    [ "$(uci -q get network.wan6.device)" = '@wan' ] || exit 0
+    upstream=wan6
+    source_config=wan6
+    ;;
+  pppoe)
+    [ "$(uci -q get network.wan.ipv6)" = 'auto' ] || exit 0
+    upstream=wan_6
+    source_config=wan
+    ;;
+  *) exit 0 ;;
+esac
+
+# Preserve custom prefix lengths and operators who explicitly disable delegation.
+case "$(uci -q get "network.$source_config.delegate")" in
+  0|false) exit 0 ;;
+esac
+if [ -z "$(uci -q get network.lan.ip6assign)" ]; then
+  uci set network.lan.ip6assign='64' || exit 1
+fi
+
+# odhcpd uses the upstream prefix lease to select server or relay mode.
+uci batch <<EOF || exit 1
+set network.$source_config.sourcefilter=0
+set dhcp.ipv6_uplink=dhcp
+set dhcp.ipv6_uplink.interface=$upstream
+set dhcp.ipv6_uplink.master=1
+set dhcp.ipv6_uplink.ra=hybrid
+set dhcp.ipv6_uplink.dhcpv6=hybrid
+set dhcp.ipv6_uplink.ndp=hybrid
+set dhcp.lan.ra=hybrid
+set dhcp.lan.dhcpv6=hybrid
+set dhcp.lan.ndp=hybrid
+set firewall.dhcpv6_relay=rule
+set firewall.dhcpv6_relay.name=Allow-DHCPv6-Relay
+set firewall.dhcpv6_relay.src=wan
+set firewall.dhcpv6_relay.family=ipv6
+set firewall.dhcpv6_relay.proto=udp
+set firewall.dhcpv6_relay.src_port=547
+set firewall.dhcpv6_relay.dest_port=547
+set firewall.dhcpv6_relay.target=ACCEPT
+commit network
+commit dhcp
+commit firewall
+EOF
+touch "$marker"

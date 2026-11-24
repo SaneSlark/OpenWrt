@@ -1,0 +1,17 @@
+diff --git a/modules/luci-mod-network/htdocs/luci-static/resources/view/network/diagnostics.js b/modules/luci-mod-network/htdocs/luci-static/resources/view/network/diagnostics.js
+--- a/modules/luci-mod-network/htdocs/luci-static/resources/view/network/diagnostics.js
++++ b/modules/luci-mod-network/htdocs/luci-static/resources/view/network/diagnostics.js
+@@ -52,9 +52,11 @@
+ 	},
+ 
+ 	load() {
++		const stat = path => L.resolveDefault(fs.stat(path), false);
++		const hasApplet = async name => (await stat('/bin/' + name)) || stat('/usr/bin/' + name);
+ 		return Promise.all([
+-			L.resolveDefault(fs.stat('/bin/ping6') || fs.stat('/usr/bin/ping6'), false),
+-			L.resolveDefault(fs.stat('/bin/traceroute6') || fs.stat('/usr/bin/traceroute6'), false),
++			hasApplet('ping6'),
++			hasApplet('traceroute6'),
+ 			L.resolveDefault(fs.stat('/usr/bin/arp-scan'), false),
+ 			network.getDevices(),
+ 			uci.load('luci')

@@ -2,6 +2,8 @@
 
 ## 2026-11-24
 
+- 三套固件启用 LAN IPv6 混合模式。上游提供前缀委派时分配子网，上游无委派时可中继 RA、DHCPv6 和 NDP。
+- 修复官方版 LuCI 网络诊断漏查 `/usr/bin` 下的 IPv6 命令，构建时校验 IPv6 Ping 和 Traceroute。
 - 三套固件恢复 HomeProxy 和简体中文界面，使用内置的 sing-box。
 - 三套固件的 SSR-Plus 增加 Mihomo 1.19.34 后端。
 - 三套固件均移除 Bypass 和 BypassCore，保留 OpenClash、PassWall 和 SSR-Plus。

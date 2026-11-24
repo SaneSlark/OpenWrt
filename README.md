@@ -85,7 +85,11 @@ SSR-Plus 保留 Xray，同时内置经 SHA256 校验的 Mihomo 1.19.34，安装�
 - dnsmasq-full：DNS 缓存、DHCPv4、静态租约、DNSSEC 和 IPv6 DNS 解析支持；IPv6 地址分配由 odhcpd 负责。
 - firewall4/nftables/nftset，供 PassWall 和 SSR-Plus 使用 nftables 透明代理后端。
 
-全新刷机时，LAN 为 `192.168.2.1/24`，DHCP 地址池为 `.100` 至 `.249`，租期 12 小时。DHCP 和 PPPoE WAN 都自动向上游请求 IPv6 地址和前缀委派（PD），默认关闭本地 ULA 前缀。上游下发前缀后，路由器从中分配一个 /64 给 LAN，通过 RA/SLAAC 与 DHCPv6 发布，并保留 AAAA 解析。PPPoE 账号和密码需在刷机后填写。保留已有设置升级时沿用现有网络配置。
+全新刷机时，LAN 为 `192.168.2.1/24`，DHCP 地址池为 `.100` 至 `.249`，租期 12 小时。WAN 自动请求 IPv6 地址和前缀委派（PD）。收到 PD 时，LAN 从该前缀分配一个 /64，并通过 RA/SLAAC 和 DHCPv6 为设备配置 IPv6。上游无 PD 且支持中继时，odhcpd 在上游与 LAN 之间中继 RA、DHCPv6 和 NDP。LAN 保留 AAAA 解析。
+
+IPv6 中继按标准拓扑配置，上游接 WAN，设备接 LAN。首次启用时根据 WAN 协议选择中继主接口，DHCP 使用 `wan6`，PPPoE 使用 `wan_6`。收到 PD 后，在 LuCI 的「网络 → 接口」中，WAN6 显示上游委派前缀，LAN 显示从该前缀分配的地址。以后更换 WAN 协议时，在 LuCI 中将中继主接口切换到新的 IPv6 上游接口。标准路由配置可通过保留设置升级启用中继，已经自定义了 RA、DHCPv6 或 NDP 的配置继续沿用现有设置。
+
+上游支持中继时，有 PD 也可以手动使用中继。将上游主接口和 LAN 的 RA、DHCPv6、NDP 均设为「中继模式」，LAN 客户端通过中继获取上游提供的 IPv6，地址可能属于上游链路的网段。要恢复从委派前缀自动为 LAN 分配地址，将两端的三项服务改回「混合模式」。
 
 OpenClash 和 PassWall 默认关闭。HomeProxy 使用三套固件内置的 sing-box，预装简体中文界面，默认未选客户端节点，服务端也关闭。配置节点后，选择一个代理接管透明代理和 DNS，以免争抢规则和端口。
 

@@ -68,13 +68,20 @@ router_fix_efi_partition_type() {
 
 router_post() {
   router_fix_host_tools
-  if [ "${FIRMWARE_VARIANT:-}" = "openwrt" ] && [ -L package/feeds/luci/luci-app-weechat ]; then
-    # The unused 25.12.6 app forms a dependency cycle with its two core variants.
-    rm -f package/feeds/luci/luci-app-weechat
+  if [ "${FIRMWARE_VARIANT:-}" = "openwrt" ]; then
+    if [ -L package/feeds/luci/luci-app-weechat ]; then
+      # The unused 25.12.6 app forms a dependency cycle with its two core variants.
+      rm -f package/feeds/luci/luci-app-weechat
+    fi
+    local diagnostics_patch="${WORKDIR}/patches/luci-ipv6-diagnostics.patch"
+    if ! git -C feeds/luci apply --reverse --check "$diagnostics_patch" 2>/dev/null; then
+      git -C feeds/luci apply "$diagnostics_patch"
+    fi
   fi
   mkdir -p files/etc/uci-defaults
   cp "${WORKDIR}/scripts/uci-defaults/97-router-network" files/etc/uci-defaults/
   chmod +x files/etc/uci-defaults/97-router-network
+  install -m755 "${WORKDIR}/scripts/uci-defaults/98-ipv6-relay" files/etc/uci-defaults/98-ipv6-relay
   python3 "${WORKDIR}/scripts/openclash-core.py" "$PWD"
 }
 

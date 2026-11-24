@@ -50,9 +50,9 @@ if [ -n "${CONFIG_FILE:-}" ]; then
   done < <(grep -E '^CONFIG_PACKAGE_[A-Za-z0-9_-]+=y$' "$requested")
 fi
 if grep -qxF 'CONFIG_BUSYBOX_CUSTOM=y' .config; then
-  required+=(BUSYBOX_CONFIG_UDHCPC)
+  required+=(BUSYBOX_CONFIG_UDHCPC BUSYBOX_CONFIG_FEATURE_IPV6 BUSYBOX_CONFIG_PING6 BUSYBOX_CONFIG_TRACEROUTE6)
 else
-  required+=(BUSYBOX_DEFAULT_UDHCPC)
+  required+=(BUSYBOX_DEFAULT_UDHCPC BUSYBOX_DEFAULT_FEATURE_IPV6 BUSYBOX_DEFAULT_PING6 BUSYBOX_DEFAULT_TRACEROUTE6)
 fi
 for option in "${required[@]}"; do
   if ! grep -qxF "CONFIG_${option}=y" .config; then
