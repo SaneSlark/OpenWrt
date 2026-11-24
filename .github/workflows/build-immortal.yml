@@ -275,7 +275,6 @@ jobs:
           find "$firmware_dir" -type f | sort
           test "$(find "$firmware_dir" -type f | wc -l)" -gt 0
           echo "firmware_dir=$firmware_dir" >> "$GITHUB_OUTPUT"
-          echo "release_tag=${FIRMWARE_VARIANT}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
 
       - name: 保存源码版本与构建配置
         run: |
@@ -309,13 +308,20 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-      - name: 创建 GitHub Release
+      - name: 生成北京时间发布标签
+        id: release_name
         if: success() && steps.compile.outcome == 'success' && env.UPLOAD_RELEASE == 'true'
+        run: |
+          timestamp="$(date +%Y%m%d-%H%M%S)"
+          echo "tag=${FIRMWARE_VARIANT}-${timestamp}" >> "$GITHUB_OUTPUT"
+
+      - name: 创建 GitHub Release
+        if: success() && steps.release_name.outcome == 'success'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.collect.outputs.release_tag }}
+          tag_name: ${{ steps.release_name.outputs.tag }}
           target_commitish: ${{ github.sha }}
-          name: ${{ env.ARTIFACT_NAME }} ${{ steps.collect.outputs.release_tag }}
+          name: ${{ env.ARTIFACT_NAME }} ${{ steps.release_name.outputs.tag }}
           files: |
             ${{ steps.collect.outputs.firmware_dir }}/*.{img,img.gz,iso,qcow2,vdi,vmdk}
             ${{ steps.collect.outputs.firmware_dir }}/SHA256SUMS

@@ -112,7 +112,7 @@ ESXi 三套固件都包含 VMXNET3 网卡驱动。将与虚拟机固件模式匹
 - 清理 SSR-Plus 上游已移除的旧配置开关。Hysteria、TUIC 等核心仍通过独立软件包选择，具体协议支持以 SSR-Plus 界面提供的选项为准。
 - LEDE 的 gettext 0.22.5 使用固定的 gnulib `c99c8d491850dc3a6e0b8604a2729d8bc5c0eff1`（24.10 基线）。gettext 0.24.2 等其他版本使用上游源码指定的 gnulib。工作流先构建 gettext 主机工具，提前发现兼容问题。
 - LEDE 为 elfutils 补齐 Bison/Flex 构建依赖，确保解析器生成工具及数据安装完成后再编译。工具预编译遵守 `compile_threads`；并行失败时单线程重试。
-- 三套工作流分别恢复缓存；Release 标签包含方案名、Run ID 和重跑次数。
+- 三套工作流分别恢复缓存。Git tag 和 Release 标题使用发布时的北京时间，格式为 `方案名-YYYYMMDD-HHMMSS`。构建编号可从 Release 正文中的 Actions 链接查到。
 - 固件清单检查 PPPoE、IPv6、VMXNET3、常用 LuCI 应用、firewall4、透明代理所需的内核模块、BypassCore 和 Bypass 的数据包，以及已移除的主题和服务。每种已生成的根文件系统都需配有 BIOS 和 UEFI 两种引导镜像。
 - `make defconfig` 后逐项比对输入配置中明确选择的软件包及其选项；上游移除或改名时立即报错，避免带着缺失功能继续编译。
 

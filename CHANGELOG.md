@@ -1,5 +1,9 @@
 # OpenWrt 固件更新日志
 
+## 2026-11-24
+
+- Git tag 和 Release 标题统一使用北京时间，格式为 `方案名-YYYYMMDD-HHMMSS`。历史 Release 按原始发布时间更新。
+
 ## 2026-11-23
 
 - 三套构建更新代理核心至 Xray 26.11.9、sing-box 1.14.4、Hysteria 2.14.0、TUIC Client 1.8.11 和 NaiveProxy 154.0.8037.49-5，并在发布前校验实际装入固件的版本。OpenClash 构建时继续获取上游最新稳定版 Mihomo。
