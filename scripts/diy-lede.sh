@@ -48,16 +48,7 @@ configure_feeds() {
 }
 
 patch_packages() {
-  local dir makefile src dst
-
-  for makefile in package/feeds/*/mosdns/Makefile feeds/*/net/mosdns/Makefile; do
-    [ -f "$makefile" ] || continue
-    if grep -q '^GO_PKG:=github.com/IrineSistiana/mosdns$' "$makefile"; then
-      sed -i 's#^GO_PKG:=github.com/IrineSistiana/mosdns$#GO_PKG:=github.com/IrineSistiana/mosdns/v5#' "$makefile"
-      echo "Fixed mosdns GO_PKG module path in $makefile."
-    fi
-  done
-
+  local src dst
   src="feeds/helloworld/shadowsocksr-libev"
   dst="package/custom/shadowsocksr-libev"
   if [ -d "$src" ]; then
@@ -66,7 +57,6 @@ patch_packages() {
     cp -a "$src" "$dst"
     echo "Using helloworld bundled shadowsocksr-libev source."
   fi
-
 }
 
 disable_nas_defaults() {

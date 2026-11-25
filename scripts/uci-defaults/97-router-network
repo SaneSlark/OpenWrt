@@ -2,6 +2,9 @@
 # Seed this profile once; the marker follows /etc/config during sysupgrade.
 [ -e /etc/config/.router-network-initialized ] && exit 0
 
+# Leave the global ULA field empty on fresh installations.
+uci -q delete network.globals.ula_prefix
+
 # Apply the routed LAN profile only when the LAN uses a static address.
 if [ "$(uci -q get network.lan.proto)" = 'static' ]; then
   uci set network.lan.ip6assign='64'

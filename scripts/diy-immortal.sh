@@ -31,18 +31,6 @@ ENABLE_VLMCSD="true"
 ENABLE_KCPTUN="true"
 # ============================================
 
-module_paths() {
-  local makefile
-
-  for makefile in package/feeds/*/mosdns/Makefile feeds/*/net/mosdns/Makefile; do
-    [ -f "$makefile" ] || continue
-    if grep -q '^GO_PKG:=github.com/IrineSistiana/mosdns$' "$makefile"; then
-      sed -i 's#^GO_PKG:=github.com/IrineSistiana/mosdns$#GO_PKG:=github.com/IrineSistiana/mosdns/v5#' "$makefile"
-      echo "Fixed mosdns GO_PKG module path in $makefile."
-    fi
-  done
-}
-
 pre_stage() {
   cd "$OPENWRT_DIR"
 
@@ -55,8 +43,6 @@ post_stage() {
 
   router_post
   router_use_release_packages xray-core sing-box hysteria tuic-client naiveproxy mihomo
-
-  module_paths
 
   sed -i "s#192.168.1.1#${LAN_IP}#g" package/base-files/files/bin/config_generate || true
   sed -i "s#255.255.255.0#${LAN_NETMASK}#g" package/base-files/files/bin/config_generate || true

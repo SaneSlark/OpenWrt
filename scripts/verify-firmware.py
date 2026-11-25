@@ -163,10 +163,11 @@ def verify(target, *, official=False):
         verify_image(path, fwtool)
 
     required = {
-        "base-files", "busybox", "netifd", "dnsmasq-full", "odhcp6c",
+        "base-files", "busybox", "netifd", "dnsmasq-full", "odhcp6c", "dropbear",
         "odhcpd-ipv6only", "ppp", "ppp-mod-pppoe", "kmod-pppoe", "luci-mod-network",
         "luci-proto-ipv6", "luci-proto-ppp", "luci-app-firewall", "luci-compat",
         "luci-app-filemanager", "luci-app-ddns", "luci-app-upnp", "luci-app-wol", "luci-app-ttyd",
+        "ttyd", "luci-i18n-ttyd-zh-cn",
         "luci-app-openclash", "luci-app-passwall", "xray-core", "sing-box",
         "luci-app-homeproxy", "luci-i18n-homeproxy-zh-cn", "ucode-mod-digest",
         "v2ray-geoip", "v2ray-geosite",

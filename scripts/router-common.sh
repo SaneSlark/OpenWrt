@@ -67,7 +67,15 @@ router_fix_efi_partition_type() {
 }
 
 router_post() {
+  local makefile
   router_fix_host_tools
+  for makefile in package/feeds/*/mosdns/Makefile feeds/*/net/mosdns/Makefile; do
+    [ -f "$makefile" ] || continue
+    if grep -q '^GO_PKG:=github.com/IrineSistiana/mosdns$' "$makefile"; then
+      sed -i 's#^GO_PKG:=github.com/IrineSistiana/mosdns$#GO_PKG:=github.com/IrineSistiana/mosdns/v5#' "$makefile"
+      echo "Fixed mosdns GO_PKG module path in $makefile."
+    fi
+  done
   if [ "${FIRMWARE_VARIANT:-}" = "openwrt" ]; then
     if [ -L package/feeds/luci/luci-app-weechat ]; then
       # The unused 25.12.6 app forms a dependency cycle with its two core variants.
@@ -79,9 +87,7 @@ router_post() {
     fi
   fi
   mkdir -p files/etc/uci-defaults
-  cp "${WORKDIR}/scripts/uci-defaults/97-router-network" files/etc/uci-defaults/
-  chmod +x files/etc/uci-defaults/97-router-network
-  install -m755 "${WORKDIR}/scripts/uci-defaults/98-ipv6-relay" files/etc/uci-defaults/98-ipv6-relay
+  install -m755 "${WORKDIR}/scripts/uci-defaults/"{97-router-network,98-ipv6-relay,98-ttyd-interface} files/etc/uci-defaults/
   python3 "${WORKDIR}/scripts/openclash-core.py" "$PWD"
 }
 

@@ -1,0 +1,7 @@
+#!/bin/sh
+# Use the device name in LuCI while preserving custom terminal listeners.
+[ "$(uci -q get network.lan.device)" = 'br-lan' ] || exit 0
+[ "$(uci -q get 'ttyd.@ttyd[0].interface')" = '@lan' ] || exit 0
+
+uci set 'ttyd.@ttyd[0].interface=br-lan' &&
+uci commit ttyd

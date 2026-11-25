@@ -158,7 +158,6 @@ jobs:
         run: |
           rm -rf dl/go-mod-cache tmp/go-build ~/.cache/go-build ~/go/pkg/mod
           make download -j"$(nproc)" V=s || make download -j1 V=s
-          make download -j1 V=s
 
       - name: 提前验证 gettext 与 gnulib 兼容性
         working-directory: ./openwrt
