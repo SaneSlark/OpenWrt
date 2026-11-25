@@ -5,6 +5,7 @@
 - 合并三套构建的 MosDNS 兼容处理，移除重复的 LEDE 配置项和软件包下载步骤。
 - 全新刷机时，全局网络选项的 IPv6 ULA 前缀默认留空。
 - 标准 LAN 使用 `br-lan` 时，LuCI 网页终端默认绑定该设备。
+- 修复 LEDE 和 ImmortalWrt 的 `opkg update`。运行时软件源不再列出仅供编译的第三方 feeds，LEDE 也排除 24.10.5 镜像站未提供索引的 `video` 源。
 
 ## 2026-11-24
 

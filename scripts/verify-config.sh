@@ -29,14 +29,16 @@ excluded=(
   luci-app-ksmbd ksmbd-server luci-app-nfs nfs-kernel-server luci-app-vsftpd vsftpd vsftpd-tls
 )
 failed=0
-if [ "${FIRMWARE_VARIANT:-}" = "openwrt" ]; then
-  for feed in helloworld passwall passwall_packages vantage; do
-    if grep -qE "^CONFIG_FEED_${feed}=[ym]$" .config; then
-      echo "Build-only feed must not be listed in official APK repositories: $feed" >&2
-      failed=1
-    fi
-  done
+excluded_feeds=(helloworld passwall passwall_packages vantage)
+if [ "${CONFIG_FILE:-}" = "config/lede_x86_64.config" ]; then
+  excluded_feeds+=(video)
 fi
+for feed in "${excluded_feeds[@]}"; do
+  if grep -qE "^CONFIG_FEED_${feed}=[ym]$" .config; then
+    echo "Unavailable feed must be excluded from firmware package repositories: $feed" >&2
+    failed=1
+  fi
+done
 # A missing Kconfig symbol is silently discarded by defconfig. Check every
 # explicitly requested package and package option, including optional apps.
 if [ -n "${CONFIG_FILE:-}" ]; then
